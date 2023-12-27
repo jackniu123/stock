@@ -236,20 +236,7 @@ if __name__ == '__main__':
 
 
 
-    # ts.set_token('4125c08f0909642ddd3d663a94cf9e8768021ad98780a0254125766c')
-    # pro = ts.pro_api()
-    #
-    # # 示例
-    # # df = pro.daily(ts_code='000001.SZ,600000.SH', start_date='20180701', end_date='20180718')
-    # # print(df)
-    #
-    # #获取某一天的总市值
-    #
-    # df = pro.daily(trade_date='20180810')
-    # print(df)
-    # print('=================================')
-    # df = pro.daily(trade_date='20231027')
-    # print(df)
+
 
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
