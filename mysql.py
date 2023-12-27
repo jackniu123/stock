@@ -30,7 +30,24 @@ try:
     sql_text = text(f''' select * from daily where ts_code=\'{all_data__ts_codes[0][0]}\' ''')
     print(sql_text)
 
+    # has_reach_last_point = False
+
+
+
     for ts_code in all_data__ts_codes:
+
+        MIN_CHANGE = 5
+        MAX_CHANGE = 9
+
+        # if not has_reach_last_point :
+        #     if ts_code[0] == '603107.SH' :
+        #         has_reach_last_point = True
+        #         continue
+        #     continue
+
+        # if not (ts_code[0] == '688536.SH') :
+        #     continue
+
         print("+"*10, f'''begin analyze: {ts_code[0]}''', "+"*10)
         sql_text = text(f''' select * from daily where ts_code=\'{ts_code[0]}\' limit 10000''')
         result = conn.execute(sql_text)
@@ -43,17 +60,20 @@ try:
 
         print('length of result:', len(all_data))
 
-        print(all_data[1])
+        if len(all_data) < 3 : # 跳过新股，不然会index out of range
+            continue
 
-        print(all_data[1][2])
+        # print(all_data[1])
+        #
+        # print(all_data[1][2])
 
         print(all_data_format)
 
-        print(all_data_format[1])
-        print(all_data_format[1][1])
+        # print(all_data_format[1])
+        # print(all_data_format[1][1])
 
 
-        print('-------------------')
+        print('--------end of ', sql_text)
 
         print('========== dataframe :==========')
 
@@ -69,7 +89,7 @@ try:
         total_profit = 0
         for row_index, row_value in df_daily.iterrows():
             # if( row_value[8] < -9.5 ):
-            if (row_value[8] > 5 and row_value[8] < 9):
+            if (row_value[8] > MIN_CHANGE and row_value[8] < MAX_CHANGE):
                 i = i + 1
                 print("+" * 5, f''' this is {i}td elements.''')
                 print(f'''    trade_date is {row_value['trade_date']}''')
@@ -84,27 +104,33 @@ try:
             #     print(f'''curIndex = {curIndex} , the element is: {df_daily[curIndex]['trade_date']}''')
             # curIndex += 1
         print('-----end iter elements in df_daily')
-        print(f'''total_profit is {total_profit}\n''')
+        print(f'''total_profit is {total_profit}  with ts_code={ts_code} [MIN_CHANGE, MAX_CHANGE] = [{MIN_CHANGE}, {MAX_CHANGE}] \n''')
 
-        del df_daily['amount']
-        del df_daily['pct_chg']
-        del df_daily['_change']
-        del df_daily['pre_close']
-        del df_daily['ts_code']
+        with open(f'追涨分析', 'a+') as my_file:
+            my_file.write(f'''total_profit is {total_profit}  with ts_code={ts_code} [MIN_CHANGE, MAX_CHANGE] = [{MIN_CHANGE}, {MAX_CHANGE}] \n''')
+            # my_file.seek(0)
+            # print(my_file.read())
+            my_file.close()
 
-        df_daily.index = pd.DatetimeIndex(df_daily['trade_date'])
-        del df_daily['trade_date']
+        if False :
+            del df_daily['amount']
+            del df_daily['pct_chg']
+            del df_daily['_change']
+            del df_daily['pre_close']
+            del df_daily['ts_code']
 
-        df_daily.columns=['open', 'high', 'low', 'close', 'volume']
+            df_daily.index = pd.DatetimeIndex(df_daily['trade_date'])
+            del df_daily['trade_date']
 
-        # print(df_daily.columns)
-        # print(df_daily)
+            df_daily.columns=['open', 'high', 'low', 'close', 'volume']
 
-        mpl.plot(df_daily, type='line', mav=(3, 6, 9), volume=True, axtitle=ts_code[0])
+            # print(df_daily.columns)
+            # print(df_daily)
 
-        # mpl.plot(df_daily, type='candle',mav=(3,6,9), volume=True)
+            mpl.plot(df_daily, type='line', mav=(3, 6, 9), volume=True, axtitle=ts_code[0])
 
-        print('-------------------')
+            # mpl.plot(df_daily, type='candle',mav=(3,6,9), volume=True)
+
 
         print("-" * 10, f'''end of analyze: {ts_code[0]}''', "-" * 10, "\n\n")
 
@@ -117,8 +143,9 @@ try:
 except Exception as e:
     print("\033[0;31;40m", e, "\033[0m")
 
-conn.commit()
-conn.close()
+finally:
+    conn.commit()
+    conn.close()
 
 
 # # 将dataframe 添加到 tmp_formidinfo 如果表存在就添加，不存在创建并添加
