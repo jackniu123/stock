@@ -20,6 +20,9 @@ webbrowser.open("https://legulegu.com/stockdata/marketcap-gdp")
 #萝卜投研
 webbrowser.open("https://robo.datayes.com/")
 
+#question mobile
+webbrowser.open("https://www.questmobile.com.cn/research/reports")
+
 
 
 

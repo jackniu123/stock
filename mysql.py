@@ -12,6 +12,8 @@ import pysnooper
 import time
 import os
 
+B_CONF_CLOSE_EQUAL_HIGH = True
+
 
 #涨停密集的交易日，是否追涨策略更容易成功？分析方法：累计每日的追涨策略盈利比，看与交易次数是否正相关
 def detail_analyzer_mijizhangting():
@@ -114,8 +116,8 @@ def zhuizhang_analizer(start_index, MIN_CHANGE, MAX_CHANGE):
 
         # detail_filename = '追涨分析' + str(start_index[0]) + '_detail.csv'
         # total_filename = f'追涨分析{start_index[0]}_total.csv'
-        detail_filename = f'追涨分析_{MIN_CHANGE}_{MAX_CHANGE}_detail.csv'
-        total_filename = f'追涨分析_{MIN_CHANGE}_{MAX_CHANGE}_total.csv'
+        detail_filename = f'追涨分析_{MIN_CHANGE}_{MAX_CHANGE}_highestprice{B_CONF_CLOSE_EQUAL_HIGH}_detail.csv'
+        total_filename = f'追涨分析_{MIN_CHANGE}_{MAX_CHANGE}_highestprice{B_CONF_CLOSE_EQUAL_HIGH}_total.csv'
 
         for ts_code in all_data__ts_codes:
 
@@ -194,6 +196,11 @@ def zhuizhang_analizer(start_index, MIN_CHANGE, MAX_CHANGE):
             total_profit_change = 0
 
             for row_index, row_value in df_daily.iterrows():
+
+                if B_CONF_CLOSE_EQUAL_HIGH:
+                    if row_value['close'] != row_value['high']:
+                        continue
+
                 # if( row_value[8] < -9.5 ):
                 if (row_value['pct_chg'] > MIN_CHANGE and row_value['pct_chg'] < MAX_CHANGE):
                     if ((MAX_CHANGE == -9) or (MIN_CHANGE == 9)):
@@ -206,20 +213,19 @@ def zhuizhang_analizer(start_index, MIN_CHANGE, MAX_CHANGE):
                         # 需要判断尾盘是涨停价的情况，此种情况在收盘的最后几分钟无法成交。我们引入了未来函数，
                         # 我们是在盘中买入了收盘时涨停的股票，如果在盘中就买入，那么应该会面临打开涨停的亏损。
 
-
-
-                        if math.isclose(row_value['close'], float(cal_zhangting(row_value['pre_close']))):
-                            print(f'''下面的交易是完成不了的，涨停了：今收：{row_value['close']} 昨收：{row_value['pre_close']}''')
-                            continue
-
-                        if row_value['close'] > float(cal_zhangting(row_value['pre_close'])):
-                            print("\033[0;31;40m", f'''收盘价大于涨停价，什么鬼：{cal_zhangting(row_value['pre_close'])} < {row_value['close']}''', \
-                                  "\033[0m")
-                            print(row_value)
-                            if (row_value['pct_chg'] > 10):
+                        if MAX_CHANGE >= 9:
+                            if math.isclose(row_value['close'], float(cal_zhangting(row_value['pre_close']))):
+                                print(f'''下面的交易是完成不了的，涨停了：今收：{row_value['close']} 昨收：{row_value['pre_close']}''')
                                 continue
-                                sys.exit()
-                            continue
+
+                            if row_value['close'] > float(cal_zhangting(row_value['pre_close'])):
+                                print("\033[0;31;40m", f'''收盘价大于涨停价，什么鬼：{cal_zhangting(row_value['pre_close'])} < {row_value['close']}''', \
+                                      "\033[0m")
+                                print(row_value)
+                                if (row_value['pct_chg'] > 10):
+                                    continue
+                                    sys.exit()
+                                continue
                         # if ( row_value['close'] == row_value[] ):
                         #     continue
 
@@ -254,6 +260,8 @@ def zhuizhang_analizer(start_index, MIN_CHANGE, MAX_CHANGE):
                             df_trade_history.to_csv(detail_filename, mode='a', header=True if not os.path.exists(detail_filename) else False,
                                                     index=False)
                             df_trade_history = df_trade_history.drop(index=df_trade_history.index)
+
+                        print('trade history:\n', row_value)
 
                         df_trade_history = df_trade_history._append({'profit_change': profit * 100/ row_value['close'], \
                                                 'profit' : profit, \
@@ -400,7 +408,10 @@ pymysql.install_as_MySQLdb()
 # zhuizhang_analizer((0, 10000), -9, -8)
 # sys.exit()
 # zhuizhang_analizer((0, 10000), 9, 11)
-zhuizhang_analizer((0, 10000), 5, 6)
+# zhuizhang_analizer((0, 10000), 9, 11)
+# zhuizhang_analizer((0, 10000), 3, 4)
+zhuizhang_analizer((0, 10000), 2, 3)
+
 # detail_analyzer_mijizhangting()
 
 
