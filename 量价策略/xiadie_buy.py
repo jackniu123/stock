@@ -19,17 +19,15 @@ import os
 #
 # 实验结果：
     TODO:无止损、无复权、无低成交量、无alpha收益计算：
-    1，无9%无法交易判断，倍数是3，全部年份：1700股票亏损，3000股票盈利.
-    2，有9%无法交易判断，倍数是3，全部年份：2693亏损，5221-2724=1497盈利.
-    3，有9%无法交易判断，倍数是5，全部年份：2158股亏损，（5221-3429）=1792股盈利.
-    4，有9%无法交易判断，倍数是5，只限制2023：285股亏损，（4815-4626）=189股盈利.
-    5，有9%无法交易判断，倍数是3，2023年：1836股亏损，最大是亏损到原来的30%，4815-3477=1338个股票盈利，最大盈利是到原来的2.62倍。最终盈利倍数是0.98，但大盘其实是2974/3087=0.96，alpha是2个百分点
-    6，无9%无法交易判断，倍数是5，2023年：288股亏损，（4815-4616）=199股盈利.
-    7，无9%无法交易判断，倍数是5，2023年，下跌才买入：215亏损，4815-4675=140股盈利
-    8，无9%无法交易判断，倍数是5，2023年，下跌才买入，连续五天缩量，上涨五个点也可以卖出：3亏损，3股盈利
+    1，2023年，连续10天下跌：86股票亏损，4815-4623=192股票盈利，但累计盈利接近0
+    2，2023年，连续12天下跌：17股票亏损，4815-4778=37股票盈利，但累计盈利接近0
+    3，2023年，连续15天下跌：2股票亏损，7股票盈利，累计盈利7个点
+    4，所有年份，连续15天下跌：92股票亏损，29股票盈利，累计138此交易，亏损25.96/138倍，主要的亏损是来自于接飞刀撬跌停；
+    5，所有年份，连续15天下跌，不撬跌停板：22股票亏损，27股票盈利，累计55次交易，亏损-133/55倍
+    6，所有年份，连续15天下跌，不撬跌停板，翻3倍才卖出：33股票亏损，17股票盈利，累计52次交易，盈利310/5200倍
 """
 
-def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL):
+def volume_analizer(start_index, DAY_COUNT_OF_INSPECTION):
     try:
         # 创建数据库连接
         engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
@@ -51,8 +49,7 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
 
         # has_reach_last_point = False
         analyze_single_stock = False  # 分析单个股票的情况
-        analyze_recent_year = True
-        analyze_only_xiadie = True
+        analyze_recent_year = False
 
         current_index = 0
 
@@ -62,8 +59,12 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                                                      'trade_count', 'profit_trade_count',
                                                      'begin_date', 'end_date'])
 
-        detail_filename = f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_detail.csv'
-        total_filename = f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_total.csv'
+        # if analyze_recent_year:
+        #     detail_filename = f'连续下跌买入_{DAY_COUNT_OF_INSPECTION}_2023_detail.csv'
+        #     total_filename = f'连续下跌买入_{DAY_COUNT_OF_INSPECTION}_2023_total.csv'
+        # else:
+        detail_filename = f'连续下跌买入_{DAY_COUNT_OF_INSPECTION}_买入时未跌停_翻倍卖出_all_detail.csv'
+        total_filename = f'连续下跌买入_{DAY_COUNT_OF_INSPECTION}_买入时未跌停_翻倍卖出_all_total.csv'
 
 
         #挨个分析股票
@@ -147,54 +148,47 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
 
             kline_index = 0
 
-            sum_of_volume = 0
-            buy_price = 0
+            xiadie_days = 0
 
             for row_index, row_value in df_daily.iterrows():
+                if row_value['pct_chg'] < 0:
+                    xiadie_days += 1
+                else:
+                    xiadie_days = 0
 
-                sum_of_volume += row_value['vol']
-                if row_index >= DAY_COUNT_OF_INSPECTION:
-                    sum_of_volume -= df_daily.iloc[row_index - DAY_COUNT_OF_INSPECTION]['vol']
+                # sum_of_volume += row_value['vol']
+                # if row_index >= DAY_COUNT_OF_INSPECTION:
+                #     sum_of_volume -= df_daily.iloc[row_index - DAY_COUNT_OF_INSPECTION]['vol']
 
 
                 # if B_CONF_CLOSE_EQUAL_HIGH:
                 #     if row_value['close'] != row_value['high']:
                 #         continue
 
-                #一开始是观察阶段，不需要交易。
-                if row_index < DAY_COUNT_OF_INSPECTION or row_index < CONTINUE_LOW_VOLUME_DAY_COUNT:
-                    continue
+                # #一开始是观察阶段，不需要交易。
+                # if row_index < DAY_COUNT_OF_INSPECTION or row_index < CONTINUE_LOW_VOLUME_DAY_COUNT:
+                #     continue
 
-                #计算最近DAY_COUNT_OF_INSPECTION天的成交量平均值
-                buy_price_threshold = 12
-                if analyze_only_xiadie:
-                    buy_price_threshold = 0
+                # #计算最近DAY_COUNT_OF_INSPECTION天的成交量平均值
+                # buy_price_threshold = 12
+                # if analyze_only_xiadie:
+                #     buy_price_threshold = 0
 
                 if not has_buy:
-                    if df_daily.iloc[row_index]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 1]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 2]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 3]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 4]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY:
-                        if row_value['pct_chg'] < buy_price_threshold:
-                            buy_index = row_index
-                            print('trade history---buy record++++++:\n', row_value)
-                            buy_price = row_value['close']
-                            has_buy = True
-                        else:
-                            print('trade history---buy record failed because too much pct_chg:\n', row_value)
+                    if DAY_COUNT_OF_INSPECTION <= xiadie_days and row_value['pct_chg'] > -4:
+                        buy_index = row_index
+                        print('trade history---buy record++++++:\n', row_value)
+                        buy_price = row_value['close']
+                        has_buy = True
                 else:
                     if row_index == len(df_daily) - 1:
                         sell_index = row_index
                         has_buy = False
                     else:
-                        if df_daily.iloc[row_index]['vol'] > sum_of_volume/DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL \
-                                or df_daily.iloc[row_index]['close'] > buy_price * 1.05:
-                            if row_value['pct_chg'] > -12:
-                                sell_index = row_index
-                                has_buy = False
-                            else:
-                                print('trade history---sell record failed because too much pct_chg:\n', row_value)
+                        # if row_value['pct_chg'] > 0:
+                        if row_value['close'] - buy_price > buy_price*2:
+                            sell_index = row_index
+                            has_buy = False
 
                         # TODO：止损
 
@@ -254,13 +248,10 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                  'profit_trade_count': profit_count, \
                  'begin_date': df_daily.iloc[0]['trade_date'], \
                  'end_date': df_daily.iloc[-1]['trade_date'], \
-                 'CONTINUE_LOW_VOLUME_DAY_COUNT': CONTINUE_LOW_VOLUME_DAY_COUNT, \
-                 'DAY_COUNT_OF_INSPECTION': DAY_COUNT_OF_INSPECTION, \
-                 'TIMES_OF_BUY': TIMES_OF_BUY, \
-                 'TIMES_OF_SELL': TIMES_OF_SELL}, ignore_index=True)
+                 'DAY_COUNT_OF_INSPECTION': DAY_COUNT_OF_INSPECTION}, ignore_index=True)
 
             # print(df_trade_history)
-            print(f'''total_profit is {total_profit} total_profit_change is {total_profit_change}  with ts_code={ts_code} [TIMES_OF_BUY, TIMES_OF_SELL] = [{TIMES_OF_BUY}, {TIMES_OF_SELL}] \n''')
+            print(f'''total_profit is {total_profit} total_profit_change is {total_profit_change}  with ts_code={ts_code} \n''')
             #
             #     # if( row_value[8] < -9.5 ):
             #     if (row_value['pct_chg'] > MIN_CHANGE and row_value['pct_chg'] < MAX_CHANGE):
@@ -312,12 +303,9 @@ if __name__ == '__main__':
     # 实验方法：在成交量连续N日位于最近M天的地量时，买入；在成交量放大到月成交量的X倍且盈利时，卖出；止损设置为下跌10%；
     #          其中各个参数的设定，先取绝对值，后基于个股最近一年的特征做参数优化。
 
-    CONTINUE_LOW_VOLUME_DAY_COUNT = 1
-    DAY_COUNT_OF_INSPECTION = 30
-    TIMES_OF_BUY = 5
-    TIMES_OF_SELL = 5
+    DAY_COUNT_OF_INSPECTION = 15
 
-    volume_analizer((0,10000), CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL)
+    volume_analizer((0,10000), DAY_COUNT_OF_INSPECTION)
 
     exit(0)
 
