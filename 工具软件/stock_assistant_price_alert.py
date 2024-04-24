@@ -1,7 +1,6 @@
 import tushare as ts
 from tkinter import messagebox
 
-
 # 超过目标价位进行告警
 # 涨跌幅过大进行告警
 
@@ -22,6 +21,7 @@ dic_target_price_a = {
 dic_target_price_us = {'AAL': (19, '美国航空'),
                        'BILI': (18, '哔哩哔哩'),
                        'TSM': (200, '台积电'),
+                       'ORGN': (2, 'Origin Materials')
                        }
 
 dic_target_price_hk = {
@@ -31,9 +31,8 @@ dic_target_price_hk = {
     '02777': (2.03, '富力地产')
 }
 
-def check_us_hk_price():
 
-
+def check_price():
     # for key, value in dic_target_price_us.items():
     #     print(value[1], f'目标价格={value[0]}', ':')
     #     data, meta_data = ts.get_intraday(key)
@@ -124,7 +123,6 @@ def check_us_hk_price():
             messagebox.showinfo('提示', f'!!!!!!!!!!! {value[1]} too much turbulence !!!!!!!!!!!!!!!!!!!!')
 
 
-
 def check_a_price():
     dic_target_price_a = {
         '001979.SZ': (15, '招商蛇口'),
@@ -182,5 +180,5 @@ def check_a_price():
 
 
 if __name__ == '__main__':
-    check_us_hk_price()
+    check_price()
     # check_a_price()
