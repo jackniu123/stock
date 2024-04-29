@@ -22,4 +22,6 @@ order by sum(data_length) desc, sum(index_length) desc;
 
 select * from daily limit 10;
 
+-- create table ma(days int, trade_date varchar(255), percent float,primary key(trade_date));
+
 

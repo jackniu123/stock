@@ -43,3 +43,6 @@ if __name__ == '__main__':
     except Exception as e:
         messagebox.showerror('出错了', e)
 
+    from stock_assistant_good_chance import check_MA20_percent
+    check_MA20_percent()
+

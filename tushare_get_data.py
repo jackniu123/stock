@@ -1,3 +1,5 @@
+import datetime
+
 import tushare as ts
 import pymysql
 import numpy as np
@@ -58,7 +60,8 @@ if __name__ == '__main__':
     import exchange_calendars as xcals
 
     xshg = xcals.get_calendar("XSHG")
-    xshg_range = xshg.schedule.loc["2005-02-16":"2010-01-01"]
+    xshg_range = xshg.schedule.loc[str(datetime.datetime.now().date() - datetime.timedelta(7)):str(datetime.datetime.now().date() - datetime.timedelta(1))]
+    # xshg_range = xshg.schedule.loc["2024-04-26":"2024-04-27"]
     jiaoyiri_list = xshg_range.index.strftime("%Y%m%d").tolist()
     print(jiaoyiri_list)
 
