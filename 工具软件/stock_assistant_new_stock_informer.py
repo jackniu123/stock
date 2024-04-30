@@ -43,6 +43,14 @@ if __name__ == '__main__':
     except Exception as e:
         messagebox.showerror('出错了', e)
 
-    from stock_assistant_good_chance import check_MA20_percent
+    from stock_assistant_good_chance import check_MA20_percent, check_buffet_index, check_ipo, check_below_net_asset
+    from requests import utils
+
+    DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36'
+    utils.default_user_agent = lambda: DEFAULT_USER_AGENT
+
     check_MA20_percent()
+    check_buffet_index()
+    check_ipo()
+    check_below_net_asset()
 

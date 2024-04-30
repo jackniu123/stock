@@ -29,6 +29,8 @@ import numpy as np
 
 '''
 
+import pandas as pd
+import requests
 
 def check_buffet_index():
     stock_buffett_index_lg_df = ak.stock_buffett_index_lg()
@@ -44,6 +46,8 @@ def check_buffet_index():
     if current_buffet_index > 1 or stock_buffett_index_lg_df.iloc[-1]['近十年分位数'] > 0.9:
         messagebox.showerror('警告',
                              f'！！！你在玩火，巴菲特指数已经高达：{{{current_buffet_index}}} \n {{{stock_buffett_index_lg_df.iloc[-1]}}}')
+
+    # print(stock_buffett_index_lg_df)
 
 
 def check_ipo():
@@ -196,11 +200,34 @@ def check_MA20_percent():
         conn.commit()
         conn.close()
 
+def check_below_net_asset():
+    stock_a_below_net_asset_statistics_df = ak.stock_a_below_net_asset_statistics()
+    print(stock_a_below_net_asset_statistics_df.iloc[-1])
+
+    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] > 0.1:
+        messagebox.showwarning('警告', f'破净股占比达到新高，底部区域呈现：\n {stock_a_below_net_asset_statistics_df.iloc[-1]}')
+
+    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < 0.07:
+        messagebox.showwarning('警告', f'破净股占比达到新低，头部区域呈现：\n {stock_a_below_net_asset_statistics_df.iloc[-1]}')
+
+
+    # print()
+
+def check_turnover_percent():
+    # https: // legulegu.com / stockdata / market - turn - over - ratio - statistics
+    return
 # https://legulegu.com/stockdata/bottom-research-nav
 # https://legulegu.com/stockdata/ma-statistics   https://zhuanlan.zhihu.com/p/63603249  https://zhuanlan.zhihu.com/p/637665421
 # 20日均线占比统计，极端值几乎与股市的高低点完全同步。
 if __name__ == '__main__':
+
+    from requests import utils
+
+    DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36'
+    utils.default_user_agent = lambda: DEFAULT_USER_AGENT
+
     # check_buffet_index()
     # check_ipo()
-
-    check_MA20_percent()
+    # check_MA20_percent()
+    # check_turnover_percent()
+    check_below_net_asset()
