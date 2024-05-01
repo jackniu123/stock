@@ -200,22 +200,135 @@ def check_MA20_percent():
         conn.commit()
         conn.close()
 
+60# https://legulegu.com/stockdata/below-net-asset-statistics?marketId=1
 def check_below_net_asset():
     stock_a_below_net_asset_statistics_df = ak.stock_a_below_net_asset_statistics()
     print(stock_a_below_net_asset_statistics_df.iloc[-1])
 
-    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] > 0.1:
-        messagebox.showwarning('警告', f'破净股占比达到新高，底部区域呈现：\n {stock_a_below_net_asset_statistics_df.iloc[-1]}')
+    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] > 0.12 or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] > 0.12:
+        messagebox.showwarning('警告', f'破净股占比达到新高，底部区域呈现：'
+                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
+                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
 
-    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < 0.07:
-        messagebox.showwarning('警告', f'破净股占比达到新低，头部区域呈现：\n {stock_a_below_net_asset_statistics_df.iloc[-1]}')
+    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < 0.07 or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] < 0.07:
+        messagebox.showwarning('警告', f'破净股占比达到新低，头部区域呈现：'
+                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
+                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
 
 
     # print()
+"""
+低换手率占比
+含义：表示换手率低于x%的股票在大盘中的占比。
 
-def check_turnover_percent():
-    # https: // legulegu.com / stockdata / market - turn - over - ratio - statistics
+举例：图中默认显示的低于3%的占比，指的就是当前换手率低于3%的股票在大盘中的占比。
+
+原理与说明：假设技术面常说的"地量见地价"真实存在，所谓卖盘消失，物极必反。 我们只需要刻画出当前市场的热度，通过比较历史，就可以发现地量在哪里。 那么换手率统计就是一个不错的方法，因为它采用全市场（A股）等权统计，相比指数的权重特点，更加不容易失真，更适合普通投资者观测。 我们看图，历史过程显示，当"低换手占比"达到一个阈值（图中虚线）时，市场很有可能遇到一个阶段低点，容易产生反转或反弹。 为了能够更清晰地观察，我们将占比数据做了一个翻转，0值在上，100值在下方，所以图中看到红色线（占比）越往下行，代表低换手占比越高。
+
+这个方法与技术面常说的大盘地量相比，能够更真实的展现市场上大多数股票的一个成交活跃状态，更容易观测到极值。 因为占比是一个百分比，相对于只统计数量，更容易用观测值和历史数据比较。
+
+但必须要说明的是，并不是市场每次的反转都伴随着极致的交易冷热度转变，因为市场是多元的，影响的因素不止一项，否则可以认为市场没有价值，是无效的。
+
+图中还有0.8%和1%的选项，它们相对3%更加苛刻。仔细观察可以发现，当我们设置越苛刻的条件，出现信号的位置也更为极致。
+
+高换手率占比
+含义：表示换手率高于x%的股票在大盘中的占比。
+
+举例：图中默认显示高于5%占比，指的就是当前换手率高于5%的股票在大盘的占比。
+
+原理与说明：高换手率占比和低换手率占比不同之处在于，高换手率反映的是市场的热度。我们直观地认为只有当换手率普遍较高时，市场的表现才是活跃的。
+
+从经验和观测所得，图中"阈值线"（图中虚线）可以认为是市场兴奋的临界值。当高于阈值时，市场具有极强的赚钱效应，也就是很容易赚钱。 换句话解释，只有当高换手率股票的较多时，市场才能体现一定的普涨效应。 换个更朴素的说法，只有当市场涨停的数量特别多时，市场才容易被激活，才容易出现普涨。 说到这里，相信大家应该有感触了，当你看到满屏的涨停时，是不是很激动，是不是特别想进场，当大家进场了，又有持续性，市场就活跃了。
+
+我们似乎找到了通向财富自由的道路。不行，冷静一下，再仔细看看。 图中很容易发现，牛市的时候，市场会持续兴奋，活跃期长，所谓躺赢期，很容易买中，不夸张的说，闭着眼睛买。 熊市的时候，兴奋点反而是相对高点，一旦出现普涨了，激动了，进场了，你可能就是为高地买单的人。
+
+这听起来也挺简单的，如此朴素的道理 当然市场如果这么简单就好了，上面说到，市场绝对不是一成不变的冷热转变，所以市场的热度也不是我们设置一个阈值就能轻松被看透。 只是换手率占比是当前市场状态的一个真实刻画，相比只看指数涨跌，更容易了解当前的市场状态。
+
+目前图中的这个阈值都是经验值，使用者可依据个人判断自行设定，这里的虚线只是一个参考。
+"""
+
+import pandas as pd
+import requests
+
+def stock_a_high_low_turnover_statistics_less08() -> pd.DataFrame:
+    """
+    乐咕乐股-换手率的股票数量
+    https://legulegu.com/stockdata/market-turn-over-ratio-statistics
+    :param
+    :type
+    :return:
+    :rtype: pandas.DataFrame
+    """
+    url = f"https://legulegu.com/stockdata/market-turn-over-ratio-statistics-data"
+    params = {
+        "token": "325843825a2745a2a8f9b9e3355cb864",
+    }
+    r = requests.get(url, params=params)
+    data_json = r.json()
+    temp_df = pd.DataFrame(data_json)
+
+    temp_df["date"] = pd.to_datetime(temp_df["date"], unit="ms").dt.date
+    temp_df.sort_values(["date"], inplace=True, ignore_index=True)
+    del temp_df["belowPercent1"]
+    del temp_df["belowPercent3"]
+    del temp_df["belowPercent5"]
+    del temp_df["belowPercent10"]
+    del temp_df["id"]
+    print(temp_df)
+    print(temp_df.iloc[-1]['belowPermill8'])
+    print(temp_df.iloc[-1]['totalCompany'])
+    return temp_df
+
+
+# https://legulegu.com/stockdata/market-turn-over-ratio-statistics
+
+# https://legulegu.com/stockdata/market-turn-over-ratio-statistics-data?token=1d8686e61a374dca969fa180b72597d1
+
+def check_high_low_turnover_statictics_legu():
+    stock_high_low_turnover_statictics_df = stock_a_high_low_turnover_statistics_less08()
+    print(stock_high_low_turnover_statictics_df.tail(30))
+
+    belowPermill8_percent = stock_high_low_turnover_statictics_df.iloc[-1]['belowPermill8'] * 100 / \
+                            stock_high_low_turnover_statictics_df.iloc[-1]['totalCompany']
+    belowPermill8_percent_1 = stock_high_low_turnover_statictics_df.iloc[-2]['belowPermill8'] * 100 / \
+                            stock_high_low_turnover_statictics_df.iloc[-2]['totalCompany']
+
+    if belowPermill8_percent > 60 or \
+            belowPermill8_percent_1 > 60:
+        messagebox.showwarning('警告',
+                               f'大盘低于0.8换手率的股票占比超过了60，请注意市场底部机会：'
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
+
+    if belowPermill8_percent < 10 or \
+            belowPermill8_percent_1 < 10:
+        messagebox.showwarning('警告',
+                               f'大盘低于0.8换手率的股票占比少于10，请注意市场顶部风险：'
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
+
     return
+
+def check_high_low_statictics_legu():
+    import akshare as ak
+    stock_a_high_low_statistics_df = ak.stock_a_high_low_statistics(symbol="zz500")
+    print(stock_a_high_low_statistics_df.tail(30))
+
+    if stock_a_high_low_statistics_df.iloc[-1]['high60'] > 60 or \
+            stock_a_high_low_statistics_df.iloc[-2]['high60'] > 60:
+        messagebox.showwarning('警告',
+                               f'中证500创60日新高的个股超过60支，请注意市场阶段性顶部风险：'
+                               f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
+                               f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}')
+
+    if stock_a_high_low_statistics_df.iloc[-1]['high60'] < 5 or \
+            stock_a_high_low_statistics_df.iloc[-2]['high60'] < 5:
+        messagebox.showwarning('警告',
+                               f'中证500创60日新高的个股少于5支，请注意市场阶段性底部机会：'
+                               f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
+                               f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}')
+
+
 # https://legulegu.com/stockdata/bottom-research-nav
 # https://legulegu.com/stockdata/ma-statistics   https://zhuanlan.zhihu.com/p/63603249  https://zhuanlan.zhihu.com/p/637665421
 # 20日均线占比统计，极端值几乎与股市的高低点完全同步。
@@ -223,11 +336,15 @@ if __name__ == '__main__':
 
     from requests import utils
 
-    DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36'
+    DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' \
+                         'Chrome/54.0.2840.99 Safari/537.36'
     utils.default_user_agent = lambda: DEFAULT_USER_AGENT
+
+    pd.options.display.max_columns = None
 
     # check_buffet_index()
     # check_ipo()
     # check_MA20_percent()
-    # check_turnover_percent()
-    check_below_net_asset()
+    # check_below_net_asset()
+    # check_high_low_statictics_legu()
+    check_high_low_turnover_statictics_legu()
