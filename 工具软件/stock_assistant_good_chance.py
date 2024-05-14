@@ -274,6 +274,9 @@ def stock_a_high_low_turnover_statistics_less08() -> pd.DataFrame:
     del temp_df["belowPercent5"]
     del temp_df["belowPercent10"]
     del temp_df["id"]
+
+    temp_df['belowPermill8_statics'] = temp_df['belowPermill8'] * 100 / temp_df['totalCompany']
+    temp_df['belowPermill8_statics_ma9'] = temp_df.belowPermill8_statics.rolling(9).mean()
     print(temp_df)
     print(temp_df.iloc[-1]['belowPermill8'])
     print(temp_df.iloc[-1]['totalCompany'])
@@ -281,12 +284,13 @@ def stock_a_high_low_turnover_statistics_less08() -> pd.DataFrame:
 
 
 # https://legulegu.com/stockdata/market-turn-over-ratio-statistics
-
 # https://legulegu.com/stockdata/market-turn-over-ratio-statistics-data?token=1d8686e61a374dca969fa180b72597d1
-
+# 该指标反映的是普涨的情况，如果掉队的很少了，那么也就意味着一波行情到了尾声了。
+# ！！！ legu网上给出的数据是9日均线，我没有使用，使用了更灵敏的指标。
 def check_high_low_turnover_statictics_legu():
     stock_high_low_turnover_statictics_df = stock_a_high_low_turnover_statistics_less08()
-    print(stock_high_low_turnover_statictics_df.tail(30))
+
+    print(stock_high_low_turnover_statictics_df.tail(60))
 
     belowPermill8_percent = stock_high_low_turnover_statictics_df.iloc[-1]['belowPermill8'] * 100 / \
                             stock_high_low_turnover_statictics_df.iloc[-1]['totalCompany']
@@ -300,8 +304,8 @@ def check_high_low_turnover_statictics_legu():
                                f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
                                f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
 
-    if belowPermill8_percent < 10 or \
-            belowPermill8_percent_1 < 10:
+    if belowPermill8_percent < 5 or \
+            belowPermill8_percent_1 < 5:
         messagebox.showwarning('警告',
                                f'大盘低于0.8换手率的股票占比少于10，请注意市场顶部风险：'
                                f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
@@ -341,10 +345,11 @@ if __name__ == '__main__':
     utils.default_user_agent = lambda: DEFAULT_USER_AGENT
 
     pd.options.display.max_columns = None
+    pd.set_option('display.width', 200)
 
     # check_buffet_index()
     # check_ipo()
     # check_MA20_percent()
     # check_below_net_asset()
     # check_high_low_statictics_legu()
-    check_high_low_turnover_statictics_legu()
+    # check_high_low_turnover_statictics_legu()
