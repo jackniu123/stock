@@ -1,5 +1,5 @@
 import akshare as ak
-from tkinter import messagebox
+from __utils import messagebox
 import datetime
 import re
 import matplotlib.pyplot as plt

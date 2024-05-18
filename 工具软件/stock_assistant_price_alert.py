@@ -1,5 +1,5 @@
 import tushare as ts
-from tkinter import messagebox
+from __utils import messagebox
 
 # 超过目标价位进行告警
 # 涨跌幅过大进行告警

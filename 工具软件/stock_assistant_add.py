@@ -1,5 +1,5 @@
 import datetime
-from tkinter import messagebox
+from __utils import messagebox
 
 import akshare as ak
 from stock_assistant_price_alert import dic_target_price_a

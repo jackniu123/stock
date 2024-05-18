@@ -76,7 +76,7 @@ def check_shixiaolv(stock_code, stock_name):
 
 import akshare as ak
 import pandas as pd
-from tkinter import messagebox
+from __utils import messagebox
 
 pd.options.display.max_columns = None
 
