@@ -2,7 +2,8 @@
 import datetime
 import re
 import requests
-
+import sys
+sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
 
 response = requests.get('https://data.eastmoney.com/xg/xg/calendar.html')

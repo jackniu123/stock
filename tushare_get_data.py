@@ -4,6 +4,9 @@ import tushare as ts
 import pymysql
 import numpy as np
 
+import sys
+sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
+
 
 def dataFrame_To_List(df):
     dataset = np.array(df)
