@@ -1,4 +1,6 @@
 import akshare as ak
+import sys
+sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
 import datetime
 import re

@@ -76,6 +76,8 @@ def check_shixiaolv(stock_code, stock_name):
 
 import akshare as ak
 import pandas as pd
+import sys
+sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
 
 pd.options.display.max_columns = None
