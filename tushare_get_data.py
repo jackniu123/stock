@@ -52,10 +52,19 @@ class mysqlMethod:
                 self.db.rollback()
                 err_count += 1
         print("Finnish! Successed:{}, Failed:{}".format(suc_count, err_count))
+        return err_count
 
     def disconnect_to_Mysql(self):
         self.cursor.close()
         self.db.close()
+
+
+error_count = 0
+
+
+def tushare_get_data_is_finished():
+    return error_count > 0
+
 
 def tushare_get_data_main():
     # 公众号：二七阿尔量化
@@ -86,14 +95,16 @@ def tushare_get_data_main():
     # 连接数据库
     Obj_mysql.connect_To_Mysql("root", "mysql123")
 
-    for jiaoyiri in jiaoyiri_list:
+    for jiaoyiri in reversed(jiaoyiri_list):
+        print('===获取日线的日期为：', jiaoyiri)
         # 获取某一天全市场的日线行情
         df = pro.daily(trade_date=jiaoyiri)
         print(df)
 
         # 转换为list
         data = dataFrame_To_List(df)
-        Obj_mysql.insert_Datas("daily", "ts_code,trade_date,open,high,low,close,pre_close,_change,pct_chg,vol,amount",
+        global error_count
+        error_count = Obj_mysql.insert_Datas("daily", "ts_code,trade_date,open,high,low,close,pre_close,_change,pct_chg,vol,amount",
                                data)
 
     # 断开数据库连接
