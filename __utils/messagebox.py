@@ -118,6 +118,7 @@ def askretrycancel(title=None, message=None, **options):
 def dump():
     for item in options_list:
         Message(**item).show()
+        print(item)
     return
 
 if __name__ == '__main__':

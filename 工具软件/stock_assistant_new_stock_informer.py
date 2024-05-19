@@ -6,11 +6,10 @@ import sys
 sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
 
-response = requests.get('https://data.eastmoney.com/xg/xg/calendar.html')
+def stock_assistant_new_stock_informer_main():
 
-# print(response.text)
+    response = requests.get('https://data.eastmoney.com/xg/xg/calendar.html')
 
-if __name__ == '__main__':
     try:
         i = 0
         for item in response.text.splitlines():
@@ -58,3 +57,5 @@ if __name__ == '__main__':
     check_high_low_statictics_legu()
     check_high_low_turnover_statictics_legu()
 
+if __name__ == '__main__':
+    stock_assistant_new_stock_informer_main()

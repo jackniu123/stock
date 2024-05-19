@@ -57,19 +57,16 @@ class mysqlMethod:
         self.cursor.close()
         self.db.close()
 
-
-if __name__ == '__main__':
+def tushare_get_data_main():
     # 公众号：二七阿尔量化
     import exchange_calendars as xcals
 
     xshg = xcals.get_calendar("XSHG")
-    xshg_range = xshg.schedule.loc[str(datetime.datetime.now().date() - datetime.timedelta(7)):str(datetime.datetime.now().date() - datetime.timedelta(1))]
+    xshg_range = xshg.schedule.loc[str(datetime.datetime.now().date() - datetime.timedelta(7)):str(
+        datetime.datetime.now().date() - datetime.timedelta(1))]
     # xshg_range = xshg.schedule.loc["2024-04-26":"2024-04-27"]
     jiaoyiri_list = xshg_range.index.strftime("%Y%m%d").tolist()
     print(jiaoyiri_list)
-
-
-
 
     # 实例化对象
     Obj_tushare = tushareMethod()
@@ -84,8 +81,6 @@ if __name__ == '__main__':
     # # 转换为list
     # data = dataFrame_To_List(df1)
 
-
-
     pro = ts.pro_api()
 
     # 连接数据库
@@ -98,8 +93,14 @@ if __name__ == '__main__':
 
         # 转换为list
         data = dataFrame_To_List(df)
-        Obj_mysql.insert_Datas("daily", "ts_code,trade_date,open,high,low,close,pre_close,_change,pct_chg,vol,amount", data)
+        Obj_mysql.insert_Datas("daily", "ts_code,trade_date,open,high,low,close,pre_close,_change,pct_chg,vol,amount",
+                               data)
 
     # 断开数据库连接
     Obj_mysql.disconnect_to_Mysql()
+
+if __name__ == '__main__':
+    tushare_get_data_main()
+
+
 

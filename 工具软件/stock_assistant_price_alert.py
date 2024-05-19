@@ -190,6 +190,9 @@ def check_price():
 #     print(f'---------------------到价提醒 A股 end----------------------------------\n')
 #
 
-if __name__ == '__main__':
+def stock_assistant_price_alert_main():
     check_price()
     # check_a_price()
+
+if __name__ == '__main__':
+    stock_assistant_price_alert_main()
