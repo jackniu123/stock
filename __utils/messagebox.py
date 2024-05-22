@@ -1,3 +1,5 @@
+# 如何进行dataframe的索引： https://blog.csdn.net/fantine_deng/article/details/105130904
+# pandas教程：https://www.runoob.com/pandas/pandas-dataframe.html
 import sys
 from tkinter.commondialog import Dialog
 from typing import Any, ClassVar

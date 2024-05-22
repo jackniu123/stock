@@ -109,6 +109,11 @@ def correlation_analizer():
                 tmp_df.rename(columns={'close': str(ts_code[0])}, inplace=True)
                 df_all = pd.merge(df_all, tmp_df, on='trade_date', how='outer')
                 print('\t processing: ', ts_code)
+
+            df_all.set_index('trade_date', inplace=True)
+            # print('未按日期排序前的N个股票报价：\n', df_all)
+            df_all.sort_index(inplace=True)
+
             df_all.to_csv(sql_query_flatten_file_name)
         else:
             df_all = pd.read_csv(sql_query_flatten_file_name, index_col=0)

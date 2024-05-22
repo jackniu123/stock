@@ -33,6 +33,7 @@ def stock_assistant_new_stock_informer_main():
 
                                 if days <= 1:
                                     messagebox.showwarning('警告', '申购日期：' + dic['TRADE_DATE']
+                                                           + '\n !!!!!!!!!!!!!!!!今天申购!!!!!!!!!!!!!!!!!!!!!!!!!!'
                                                            + '\n当前时间：' + str(datetime.datetime.now().date())
                                                            + '\n股票名称：' + dic['SECURITY_NAME_ABBR'])
                                 else:
