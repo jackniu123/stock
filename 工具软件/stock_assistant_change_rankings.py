@@ -2,9 +2,13 @@
 import pandas as pd
 from pandas import Series
 import numpy as np
-
+import datetime
+import sys
+sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
+from __utils import messagebox, kline
 
 def change_rankings(start_date='20230522', end_date='20240522'):
+    print(f'change_rankings par：start_date={start_date}, end_date={end_date}')
     sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/量价策略/数据挖掘/sql_query_flatten.csv'
     df_all = pd.read_csv(sql_query_flatten_file_name, skiprows= 0*200, nrows=10000, index_col=0)
     # df_all = pd.read_csv(sql_query_flatten_file_name, skiprows=0 * 200, nrows=100)
@@ -55,10 +59,20 @@ def change_rankings(start_date='20230522', end_date='20240522'):
 
     print('result : \n', df_max_min)
     df_max_min.sort_values(by='chg_from_max', axis=1, ascending=True, inplace=True)
-    print('result : \n', df_max_min)
+    pd.options.display.max_rows = None
+    print('change_rankings top 100 results : \n', df_max_min.T.head(100))
 
+    return df_max_min.T
 
-    return df_all.loc[start_date:end_date, ]
 
 if __name__ == '__main__':
-    change_rankings()
+    start_date = str((datetime.datetime.now().date() - datetime.timedelta(365)).strftime("%Y%m%d"))
+    end_date = str(datetime.datetime.now().date().strftime("%Y%m%d"))
+    df_change_rankings = change_rankings(start_date, end_date)
+
+    list_change_rankings = list(df_change_rankings.head(5).index)
+    print(f'most change stocks between {start_date} and {end_date} ：', list_change_rankings)
+
+    # kline.show_k_lines(list_change_rankings)
+    kline.show_k_lines(list_change_rankings, start_date, end_date)
+

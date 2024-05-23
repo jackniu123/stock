@@ -1,1 +1,3 @@
-__all__ = ['messagebox']
+__all__ = ['messagebox', 'kline']
+
+print('__init__:', __name__)
