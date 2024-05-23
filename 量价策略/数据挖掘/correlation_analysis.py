@@ -66,8 +66,8 @@ import pymysql
 def correlation_analizer():
     pymysql.install_as_MySQLdb()
     try:
-        sql_query_file_name = 'sql_query_all.csv'
-        sql_query_flatten_file_name = 'sql_query_flatten.csv'
+        sql_query_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all.csv'
+        sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_flatten.csv'
         corr_file_name = 'correlation_analysis.csv'
 
         # sql_query_file_name = 'tmp_sql_query_all.csv'
@@ -92,8 +92,8 @@ def correlation_analizer():
 
         if not os.path.exists(sql_query_file_name):
             print('开始查询数据库：select ts_code, trade_date, close from daily')
-            sql_text = text(f'''select ts_code, trade_date, close from daily where ts_code like \'000______\' and trade_date like \'2023____\' limit 10000000''')
-            # sql_text = text(f'''select ts_code, trade_date, close from daily''')
+            # sql_text = text(f'''select ts_code, trade_date, close from daily where ts_code like \'000______\' and trade_date like \'2023____\' limit 10000000''')
+            sql_text = text(f'''select ts_code, trade_date, close from daily''')
             result = conn.execute(sql_text)
             all_data = result.fetchall()
             df_daily = pd.DataFrame(list(all_data))
