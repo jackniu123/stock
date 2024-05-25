@@ -39,11 +39,11 @@ def get_m2_and_gold_price_df():
     for i_index in range(len(df_all)):
         df_all.loc[df_all.index[i_index], 'm2_change'] = \
             df_all.loc[df_all.index[i_index], '货币和准货币(M2)-数量(亿元)'] / df_all.loc[df_all.index[0], '货币和准货币(M2)-数量(亿元)']
-        # df_all.loc[df_all.index[i_index], 'gold_m2_ratio'] = \
-        #     df_all.loc[df_all.index[i_index], 'gold_change'] / df_all.loc[df_all.index[i_index], 'm2_change']
+        df_all.loc[df_all.index[i_index], 'gold_m2_ratio'] = \
+            df_all.loc[df_all.index[i_index], 'gold_change'] / df_all.loc[df_all.index[i_index], 'm2_change']
 
-    # df_all = df_all[['m2_change', 'gold_change', 'gold_m2_ratio']]
-    df_all = df_all[['m2_change', 'gold_change']]
+    df_all = df_all[['m2_change', 'gold_change', 'gold_m2_ratio']]
+    # df_all = df_all[['m2_change', 'gold_change']]
     pd.options.display.max_rows = None
     print(df_all)
     # print(df_all.sort_values(by='gold_m2_ratio'))
@@ -65,14 +65,15 @@ def check_gold_price():
     latest_gold_change = df_all.loc[df_all.index[-1], 'gold_change']
 
     print(f'金价指数={latest_gold_change}, m2指数={last_m2_change}')
-    # 该比值历史最大值是1.19，最小值是0.85
-    if latest_gold_change > last_m2_change * 1.1:
-        message_info = '金价涨幅高于M2涨幅的1.1倍了，卖出黄金呗！' + f'\n 金价指数：{latest_gold_change} m2指数：{last_m2_change}'
-    elif latest_gold_change < last_m2_change * 0.88:
-        message_info = '金价涨幅低于M2涨幅的0.88倍了，抄底黄金呗！' + f'\n 金价指数：{latest_gold_change} m2指数：{last_m2_change}'
+    #
+    if latest_gold_change / last_m2_change > df_all['gold_m2_ratio'].quantile(0.95):
+        message_info = '金价涨幅除以M2涨幅高于95分位了，卖出黄金呗！' + f'\n 金价指数：{latest_gold_change} m2指数：{last_m2_change}'
+    elif latest_gold_change / last_m2_change < df_all['gold_m2_ratio'].quantile(0.05):
+        message_info = '金价涨幅除以M2涨幅低于0.05分位了，抄底黄金呗！' + f'\n 金价指数：{latest_gold_change} m2指数：{last_m2_change}'
 
     if len(message_info) > 0:
         messagebox.showwarning('警告', message_info)
+        df_all = df_all[['m2_change', 'gold_change']]
         plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
         df_all.plot(figsize=(20, 12))
         plt.show()
