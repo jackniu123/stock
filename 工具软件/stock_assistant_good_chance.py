@@ -198,6 +198,7 @@ def check_MA20_percent():
 
     except Exception as e:
         print(e)
+        messagebox.showerror('错误', e)
     finally:
         conn.commit()
         conn.close()

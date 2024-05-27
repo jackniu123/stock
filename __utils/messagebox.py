@@ -1,10 +1,11 @@
 # 如何进行dataframe的索引： https://blog.csdn.net/fantine_deng/article/details/105130904
 # pandas教程：https://www.runoob.com/pandas/pandas-dataframe.html
-import sys
+import datetime
+import logging
 from tkinter.commondialog import Dialog
 from typing import Any, ClassVar
 
-__all__ = ["showinfo", "showwarning", "showerror",
+__all__ = ["showinfo", "showwarning", "showerror", "log",
            "askquestion", "askokcancel", "askyesno",
            "askyesnocancel", "askretrycancel"]
 
@@ -123,7 +124,25 @@ def dump():
         print(item)
     return
 
+
+def log(level='None', tag='None', message='None'):
+    logger = logging.getLogger('dev')
+    logger.setLevel(logging.INFO)
+
+    file_handler = logging.FileHandler('python_log.log')
+    file_handler.setLevel(logging.INFO)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    logger.info(str(datetime.datetime.now()) + ' : ' + level + ' : ' + tag + ' : ' + message)
+
+
 if __name__ == '__main__':
     # showerror('错误', "出错了")
     # showwarning('警告', "警告来临")
+    log()
     dump()

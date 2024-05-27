@@ -1,6 +1,3 @@
-import tushare as ts
-import sys
-sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
 
 # 超过目标价位进行告警
@@ -191,9 +188,12 @@ def check_price():
 #     print(f'---------------------到价提醒 A股 end----------------------------------\n')
 #
 
+
 def stock_assistant_price_alert_main():
     check_price()
+    messagebox.log(level=messagebox.INFO, tag='stock_assistant_price_alert_main', message='finished.')
     # check_a_price()
+
 
 if __name__ == '__main__':
     stock_assistant_price_alert_main()

@@ -2,12 +2,10 @@
 import datetime
 import re
 import requests
-import sys
 
 from 工具软件.stock_assistant_good_chance_gold_price_alert import check_gold_price
-
-sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
+
 
 def stock_assistant_new_stock_informer_main():
 
@@ -61,6 +59,9 @@ def stock_assistant_new_stock_informer_main():
     check_high_low_statictics_legu()
     check_high_low_turnover_statictics_legu()
     check_gold_price()
+
+    messagebox.log(level=messagebox.INFO, tag='stock_assistant_new_stock_informer_main', message='finished.')
+
 
 if __name__ == '__main__':
     stock_assistant_new_stock_informer_main()
