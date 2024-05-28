@@ -190,8 +190,9 @@ def check_price():
 
 
 def stock_assistant_price_alert_main():
+    messagebox.logger.warning('===begin.')
     check_price()
-    messagebox.log(level=messagebox.INFO, tag='stock_assistant_price_alert_main', message='finished.')
+    messagebox.logger.warning('===finished.')
     # check_a_price()
 
 

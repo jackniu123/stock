@@ -8,6 +8,7 @@ from __utils import messagebox
 
 
 def stock_assistant_new_stock_informer_main():
+    messagebox.logger.warning('===begin.')
 
     response = requests.get('https://data.eastmoney.com/xg/xg/calendar.html')
 
@@ -60,7 +61,7 @@ def stock_assistant_new_stock_informer_main():
     check_high_low_turnover_statictics_legu()
     check_gold_price()
 
-    messagebox.log(level=messagebox.INFO, tag='stock_assistant_new_stock_informer_main', message='finished.')
+    messagebox.logger.warning('===finished.')
 
 
 if __name__ == '__main__':

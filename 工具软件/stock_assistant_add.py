@@ -3,9 +3,12 @@ from __utils import messagebox
 
 import akshare as ak
 from stock_assistant_price_alert import dic_target_price_a
+import traceback
 
 
 def stock_assistant_add_main():
+    messagebox.logger.warning('===begin.')
+
     for key, value in dic_target_price_a.items():
         try:
             print(value[1], "增发日历:")
@@ -17,11 +20,11 @@ def stock_assistant_add_main():
                     print("!!! 这支股票要增发，妈的。")
                     messagebox.showerror('警告', f"{{{value[1]}}} 增发日期是 {{{row['公告日期']}}}")
         except Exception as e:
-            print(e)
-            messagebox.showerror('出错了', e)
+            messagebox.showerror('出错了', f'{traceback.format_exc()}')
 
-    messagebox.log(level=messagebox.INFO, tag='stock_assistant_add_main', message='finished.')
+    messagebox.logger.warning('===finished.')
 
 
 if __name__ == '__main__':
     stock_assistant_add_main()
+    messagebox.dump()

@@ -1,6 +1,6 @@
 # 如何进行dataframe的索引： https://blog.csdn.net/fantine_deng/article/details/105130904
 # pandas教程：https://www.runoob.com/pandas/pandas-dataframe.html
-import datetime
+import inspect, threading
 import logging
 from tkinter.commondialog import Dialog
 from typing import Any, ClassVar
@@ -47,18 +47,29 @@ class Message(Dialog):
 
 options_list = []
 
+lock = threading.RLock()
 #
 # convenience stuff
 
 # Rename _icon and _type options to allow overriding them in options
 def _show(title=None, message=None, _icon=None, _type=None, **options):
+    lock.acquire()
+    caller_frame = inspect.stack()[2]
+    caller_file = caller_frame[1]
+    caller_line = caller_frame[2]
+    caller_function = caller_frame[3]
+
+    message = message + f'\n !!! real position is[{caller_file}:{caller_line}:{caller_function}:]'
+
     if _icon and "icon" not in options:    options["icon"] = _icon
     if _type and "type" not in options:    options["type"] = _type
     if title:   options["title"] = title
     if message: options["message"] = message
 
+    logger.warning(options)
     print(options)
     options_list.append(options)
+    lock.release()
     return YES
     # res = Message(**options).show()
     # # In some Tcl installations, yes/no is converted into a boolean.
@@ -67,6 +78,7 @@ def _show(title=None, message=None, _icon=None, _type=None, **options):
     #         return YES
     #     return NO
     # # In others we get a Tcl_Obj.
+    # lock.release()
     # return str(res)
 
 
@@ -125,24 +137,39 @@ def dump():
     return
 
 
-def log(level='None', tag='None', message='None'):
-    logger = logging.getLogger('dev')
-    logger.setLevel(logging.INFO)
+# %(name)s：Logger的名字
+# %(levelno)s：打印日志级别的数值
+# %(levelname)s：打印日志级别的名称
+# %(pathname)s：打印当前执行程序的路径，其实就是sys.argv[0]
+# %(filename)s：打印当前执行程序名
+# %(funcName)s：打印日志的当前函数
+# %(lineno)d：打印日志的当前行号
+# %(asctime)s：打印日志的时间
+# % (msecs)03d：打印毫秒数
+# %(thread)d：打印线程ID
+# %(threadName)s：打印线程名称
+# %(process)d：打印进程ID
+# %(message)s：打印日志信息
+format_str = '%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s'
+formatter = logging.Formatter(fmt=format_str)
+# logging.basicConfig(format=format_str)
 
-    file_handler = logging.FileHandler('python_log.log')
-    file_handler.setLevel(logging.INFO)
+logger = logging.getLogger('dev')
+logger.setLevel(logging.INFO)
 
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+file_handler = logging.FileHandler('python_log.log')
+file_handler.setLevel(logging.WARNING)
+file_handler.setFormatter(formatter)
 
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(formatter)
 
-    logger.info(str(datetime.datetime.now()) + ' : ' + level + ' : ' + tag + ' : ' + message)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 if __name__ == '__main__':
     # showerror('错误', "出错了")
     # showwarning('警告', "警告来临")
-    log()
     dump()
