@@ -1,0 +1,170 @@
+import datetime
+import json
+import os.path
+import time
+from __utils import messagebox
+# 市场京流动性：https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500
+
+def find_data(main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
+              match_url=None, match_content=None) -> str:
+    # -*- coding: utf-8 -*-
+    # @Time   : 2022-08-27 11:59
+    # @Name   : selenium_cdp.py
+
+    import json
+    from selenium import webdriver
+    from selenium.common.exceptions import WebDriverException
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+
+    options = Options()
+
+    caps = {
+        "browserName": "chrome",
+        'goog:loggingPrefs': {'performance': 'ALL'}  # 开启日志性能监听
+    }
+    # 将caps添加到options中
+    for key, value in caps.items():
+        options.set_capability(key, value)
+    options.binary_location = "D:\Program Files (x86)\chrome-win64\chrome-win64\chrome.exe"  # 指定Chrome浏览器的路径
+    # 启动chromedriver
+    chromedriver_path = "D:\Program Files (x86)\chromedriver-win64\chromedriver-win64\chromedriver.exe"  # 指定ChromeDriver的路径
+    service = Service(chromedriver_path)
+    service.start()
+    browser = webdriver.Chrome(service=service, options=options)  # 启动浏览器
+    browser.get(main_url)  # 访问该url
+
+    # time.sleep(10)
+
+    def filter_type(_type: str):
+        types = [
+            'application/javascript', 'application/x-javascript', 'text/css', 'webp', 'image/png', 'image/gif',
+            'image/jpeg', 'image/x-icon', 'application/octet-stream'
+        ]
+
+        if _type not in types:
+            return True
+        return False
+
+    while True:
+        performance_log = browser.get_log('performance')  # 获取名称为 performance 的日志
+        if len(performance_log) < 10:
+            print('no data received!')
+        for packet in performance_log:
+            message = json.loads(packet.get('message')).get('message')  # 获取message的数据
+            if message.get('method') != 'Network.responseReceived':  # 如果method 不是 responseReceived 类型就不往下执行
+                continue
+            packet_type = message.get('params').get('response').get('mimeType')  # 获取该请求返回的type
+            if not filter_type(_type=packet_type):  # 过滤type
+                continue
+            requestId = message.get('params').get('requestId')  # 唯一的请求标识符。相当于该请求的身份证
+            url = message.get('params').get('response').get('url')  # 获取 该请求  url
+            try:
+                resp = browser.execute_cdp_cmd('Network.getResponseBody', {'requestId': requestId})  # selenium调用 cdp
+                print(f'type: {packet_type} url: {url}')
+                print(f'response: {resp}')
+                if match_url and match_content:
+                    if match_url in url and match_content in resp:
+                        return resp['body']
+                if match_url and match_url in url:
+                    return resp['body']
+                if match_content and match_content in resp:
+                    return resp['body']
+            except WebDriverException:  # 忽略异常
+                pass
+        time.sleep(10)
+        print(100*'=')
+
+    return ''
+
+def check_liquidity_chance_and_risk():
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    # 128,678
+    if not os.path.exists('found_data.txt') \
+            or (datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getctime('found_data.txt'))).days > 0:
+        found_data = find_data(
+            main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
+            match_url='https://tc.macromicro.me/charts/data/81331')
+        print(found_data)
+        found_data = json.loads(found_data)
+        found_data = found_data['data']['c:81331']['series']
+        print(found_data)
+        if len(str(found_data)) > 10:
+            if os.path.exists('found_data.txt'):
+                os.remove('found_data.txt')
+            with open('found_data.txt', 'w') as f:
+                f.write(str(found_data))
+                f.close()
+
+    # with open('test.json', 'r') as f:
+    with open('found_data.txt', 'r') as f:
+        str_data = f.read()
+        f.close()
+        # print(str_data)
+        data_list = eval(str_data)
+        # print(100*"=")
+
+        df_liquidity = pd.DataFrame(data_list[0], columns=['date', 'liquidity'])
+        df_index = pd.DataFrame(data_list[1], columns=['date', 'stock_index'])
+
+        df_liquidity.set_index('date', inplace=True)
+        df_index.set_index('date', inplace=True)
+
+        # print(df_liquidity)
+        # print(df_index)
+        # print('===================')
+        # print(df_liquidity.dtypes)
+        # print(df_index.dtypes)
+
+        df_all = pd.merge(df_liquidity, df_index, on=['date'], how='outer')
+        df_all.sort_index(inplace=True)
+        df_all.ffill(inplace=True)
+        df_all.bfill(inplace=True)
+        df_all['stock_index'] = df_all['stock_index'].astype(float)
+
+        print('last 10 days data: ', df_all['liquidity'].tail(10))
+        # liquidity_delta = 0
+        # i = -2
+        # while liquidity_delta == 0:
+        #     liquidity_delta = df_all['liquidity'][-1] - df_all['liquidity'][i]
+        #     i = i - 1
+
+        # print('\n\ncurrent liquidity:\n', df_all.iloc[-1],
+        #       '\nlast liquidity:\n', df_all.iloc[i+1],
+        #       '\nliquidity delta:', liquidity_delta)
+
+        # df_all = (df_all - df_all.min()) / (df_all.max()-df_all.min())
+        # df_all.plot()
+        # plt.show()
+        # plt.close()
+
+        df_all_delta = df_all.diff(1) / df_all
+
+        print(f'\n\ndf_all_delta.tail(10) = \n {df_all_delta.tail(10)}')
+
+        last_liquidity_delta_scaled = 0
+        i = 1
+        while last_liquidity_delta_scaled == 0:
+            last_liquidity_delta_scaled = df_all_delta['liquidity'][-i]
+            i = i + 1
+        print('last liquidity delta:', last_liquidity_delta_scaled)
+
+        liquidity_delta_95 = df_all_delta['liquidity'].quantile(0.95)
+        print('liquidity delta 95分位数：', liquidity_delta_95)
+        liquidity_delta_05 = df_all_delta['liquidity'].quantile(0.05)
+        print('liquidity delta 95分位数：', liquidity_delta_05)
+
+        if last_liquidity_delta_scaled > liquidity_delta_95:
+            messagebox.showwarning('警告', f'流动性大幅提升，请关注买入机会！\n '
+                                           f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
+                                           f'0.95分位数是{liquidity_delta_95}')
+        if last_liquidity_delta_scaled < liquidity_delta_05:
+            messagebox.showwarning('警告', f'流动性大幅减少，请关注风险，及时卖出！\n '
+                                           f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
+                                           f'0.05分位数是{liquidity_delta_05}')
+
+
+if __name__ == "__main__":
+    check_liquidity_chance_and_risk()

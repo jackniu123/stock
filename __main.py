@@ -18,6 +18,8 @@ if __name__ == '__main__':
         stock_assistant_price_alert_main()
         from 工具软件.stock_assistant_add import stock_assistant_add_main
         stock_assistant_add_main()
+        from 工具软件.stock_assitant_liquidity_inspector import check_liquidity_chance_and_risk
+        check_liquidity_chance_and_risk()
 
     else: # akshare多线程不安全，导致错误多发，还是串行执行吧
         from tushare_get_data import tushare_get_data_main, tushare_get_data_is_finished

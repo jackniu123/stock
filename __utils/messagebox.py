@@ -42,12 +42,14 @@ NO = "no"
 class Message(Dialog):
     "A message box"
 
-    command  = "tk_messageBox"
+    command = "tk_messageBox"
 
 
 options_list = []
 
 lock = threading.RLock()
+
+
 #
 # convenience stuff
 
@@ -157,7 +159,7 @@ formatter = logging.Formatter(fmt=format_str)
 logger = logging.getLogger('dev')
 logger.setLevel(logging.INFO)
 
-file_handler = logging.FileHandler('python_log.log')
+file_handler = logging.FileHandler('D:\不要删除牛爸爸的程序\__utils\python_log.log')
 file_handler.setLevel(logging.WARNING)
 file_handler.setFormatter(formatter)
 
@@ -167,7 +169,6 @@ console_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
-
 
 if __name__ == '__main__':
     # showerror('错误', "出错了")
