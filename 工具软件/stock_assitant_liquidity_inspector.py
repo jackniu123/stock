@@ -153,28 +153,32 @@ def check_liquidity_chance_and_risk():
 
         df_all_delta = df_all.diff(1) / df_all
 
-        print(f'\n\ndf_all_delta.tail(10) = \n {df_all_delta.tail(10)}')
+        print(f'\n\ndf_all_delta.tail(50) = \n {df_all_delta.tail(50)}')
 
         last_liquidity_delta_scaled = 0
+        last_liquidity_release_date = ''
         i = 1
         while last_liquidity_delta_scaled == 0:
             last_liquidity_delta_scaled = df_all_delta['liquidity'][-i]
+            last_liquidity_release_date = df_all_delta.index[-i]
             i = i + 1
         print('last liquidity delta:', last_liquidity_delta_scaled)
 
         liquidity_delta_95 = df_all_delta['liquidity'].quantile(0.95)
         print('liquidity delta 95分位数：', liquidity_delta_95)
         liquidity_delta_05 = df_all_delta['liquidity'].quantile(0.05)
-        print('liquidity delta 95分位数：', liquidity_delta_05)
+        print('liquidity delta 05分位数：', liquidity_delta_05)
 
         if last_liquidity_delta_scaled > liquidity_delta_95:
             messagebox.showwarning('警告', f'流动性大幅提升，请关注买入机会！\n '
                                            f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
-                                           f'0.95分位数是{liquidity_delta_95}')
+                                           f'0.95分位数是{liquidity_delta_95}\n '
+                                           f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
         if last_liquidity_delta_scaled < liquidity_delta_05:
             messagebox.showwarning('警告', f'流动性大幅减少，请关注风险，及时卖出！\n '
                                            f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
-                                           f'0.05分位数是{liquidity_delta_05}')
+                                           f'0.05分位数是{liquidity_delta_05}\n '
+                                           f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
 
 
 if __name__ == "__main__":
