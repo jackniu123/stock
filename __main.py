@@ -1,4 +1,5 @@
 # 开机启动程序的总入口文件
+import logging
 import sys
 import time
 import threading
@@ -10,16 +11,22 @@ if __name__ == '__main__':
     messagebox.logger.warning('=================begin...=================')
 
     if True:
-        from tushare_get_data import tushare_get_data_main
-        tushare_get_data_main()
-        from 工具软件.stock_assistant_new_stock_informer import stock_assistant_new_stock_informer_main
-        stock_assistant_new_stock_informer_main()
-        from 工具软件.stock_assistant_price_alert import stock_assistant_price_alert_main
-        stock_assistant_price_alert_main()
-        from 工具软件.stock_assistant_add import stock_assistant_add_main
-        stock_assistant_add_main()
-        from 工具软件.stock_assitant_liquidity_inspector import check_liquidity_chance_and_risk
-        check_liquidity_chance_and_risk()
+        try:
+            from tushare_get_data import tushare_get_data_main
+            tushare_get_data_main()
+            from 工具软件.stock_assistant_new_stock_informer import stock_assistant_new_stock_informer_main
+            stock_assistant_new_stock_informer_main()
+            from 工具软件.stock_assistant_price_alert import stock_assistant_price_alert_main
+            stock_assistant_price_alert_main()
+            from 工具软件.stock_assistant_add import stock_assistant_add_main
+            stock_assistant_add_main()
+            from 工具软件.stock_assitant_liquidity_inspector import check_liquidity_chance_and_risk
+            check_liquidity_chance_and_risk()
+        except Exception as e:
+            messagebox.logger.warning('!!!exception occurred:' + e)
+        except:
+            messagebox.logger.warning('!!!unknown error')
+
 
     else: # akshare多线程不安全，导致错误多发，还是串行执行吧
         from tushare_get_data import tushare_get_data_main, tushare_get_data_is_finished

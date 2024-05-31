@@ -26,12 +26,23 @@ def find_data(main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-
     # 将caps添加到options中
     for key, value in caps.items():
         options.set_capability(key, value)
+    # options.add_argument('--no-sandbox')  # 解决DevToolsActivePort文件不存在的报错
+    # options.add_argument('--window-size=1,1')  # 指定浏览器分辨率
+    # options.add_argument('--disable-gpu')  # 谷歌文档提到需要加上这个属性来规避bug
+    # options.add_argument('--hide-scrollbars')  # 隐藏滚动条, 应对一些特殊页面
+    # options.add_argument('blink-settings=imagesEnabled=false')  # 不加载图片, 提升速度
+    # options.add_argument('--headless')  # 浏览器不提供可视化页面. linux下如果系统不支持可视化不加这条会启动失败
+    # options.add_argument('--start-minimized')
+    # options.add_argument('--no-startup-window')
+    options.add_argument('--window-position=2900,2024')
     options.binary_location = "D:\Program Files (x86)\chrome-win64\chrome-win64\chrome.exe"  # 指定Chrome浏览器的路径
     # 启动chromedriver
     chromedriver_path = "D:\Program Files (x86)\chromedriver-win64\chromedriver-win64\chromedriver.exe"  # 指定ChromeDriver的路径
     service = Service(chromedriver_path)
     service.start()
     browser = webdriver.Chrome(service=service, options=options)  # 启动浏览器
+    # browser.set_window_size(100, 50)
+    browser.minimize_window()
     browser.get(main_url)  # 访问该url
 
     # time.sleep(10)
