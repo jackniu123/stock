@@ -88,7 +88,9 @@ def find_data(main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-
 
     return ''
 
+
 def check_liquidity_chance_and_risk():
+    messagebox.logger.warning('===begin.')
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
@@ -179,6 +181,7 @@ def check_liquidity_chance_and_risk():
                                            f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
                                            f'0.05分位数是{liquidity_delta_05}\n '
                                            f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
+        messagebox.logger.warning('===end.')
 
 
 if __name__ == "__main__":
