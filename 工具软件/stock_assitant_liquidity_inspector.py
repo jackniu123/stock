@@ -57,10 +57,17 @@ def find_data(main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-
             return True
         return False
 
+    i = 0
     while True:
         performance_log = browser.get_log('performance')  # 获取名称为 performance 的日志
         if len(performance_log) < 10:
             print('no data received!')
+            i = i + 1
+
+        if i > 5:
+            messagebox.logger.warning('!!!no data received.')
+            break
+
         for packet in performance_log:
             message = json.loads(packet.get('message')).get('message')  # 获取message的数据
             if message.get('method') != 'Network.responseReceived':  # 如果method 不是 responseReceived 类型就不往下执行
@@ -86,6 +93,7 @@ def find_data(main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-
         time.sleep(10)
         print(100*'=')
 
+
     return ''
 
 
@@ -98,18 +106,24 @@ def check_liquidity_chance_and_risk():
     if not os.path.exists('found_data.txt') \
             or (datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getctime('found_data.txt'))).days > 0:
         found_data = find_data(
-            main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
-            match_url='https://tc.macromicro.me/charts/data/81331')
-        print(found_data)
-        found_data = json.loads(found_data)
-        found_data = found_data['data']['c:81331']['series']
-        print(found_data)
+            main_url='https://sc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
+            match_url='https://sc.macromicro.me/charts/data/81331')
+
         if len(str(found_data)) > 10:
+
+            print(found_data)
+            found_data = json.loads(found_data)
+            found_data = found_data['data']['c:81331']['series']
+            print(found_data)
+
             if os.path.exists('found_data.txt'):
                 os.remove('found_data.txt')
             with open('found_data.txt', 'w') as f:
                 f.write(str(found_data))
                 f.close()
+        else:
+            messagebox.logger.warning('!!!failed to update data because no data received.')
+            return
 
     # with open('test.json', 'r') as f:
     with open('found_data.txt', 'r') as f:
