@@ -206,15 +206,34 @@ def check_MA20_percent():
 60# https://legulegu.com/stockdata/below-net-asset-statistics?marketId=1
 def check_below_net_asset():
     stock_a_below_net_asset_statistics_df = ak.stock_a_below_net_asset_statistics()
-    print(stock_a_below_net_asset_statistics_df.iloc[-1])
 
-    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] > 0.12 or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] > 0.12:
-        messagebox.showwarning('警告', f'破净股占比达到新高，底部区域呈现：'
+    show_more_info = False
+    if show_more_info:
+        print(stock_a_below_net_asset_statistics_df)
+
+        print('below_net_asset_ratio 95分位数：', stock_a_below_net_asset_statistics_df['below_net_asset_ratio'].quantile(0.95))
+        print('below_net_asset_ratio 10分位数：',
+              stock_a_below_net_asset_statistics_df['below_net_asset_ratio'].quantile(0.1))
+
+        print(stock_a_below_net_asset_statistics_df.iloc[-1])
+
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+        stock_a_below_net_asset_statistics_df.set_index('date', inplace=True)
+        stock_a_below_net_asset_statistics_df['below_net_asset_ratio'].plot(figsize=(20, 12))
+        plt.show()
+        plt.close()
+
+    below_net_asset_ratio_95 = stock_a_below_net_asset_statistics_df['below_net_asset_ratio'].quantile(0.95)
+    below_net_asset_ratio_10 = stock_a_below_net_asset_statistics_df['below_net_asset_ratio'].quantile(0.1)
+    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] > below_net_asset_ratio_95 \
+            or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] > below_net_asset_ratio_95:
+        messagebox.showwarning('警告', f'破净股占比超过95分位数，底部区域呈现：'
                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
 
-    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < 0.07 or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] < 0.07:
-        messagebox.showwarning('警告', f'破净股占比达到新低，头部区域呈现：'
+    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < below_net_asset_ratio_10\
+            or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] < below_net_asset_ratio_10:
+        messagebox.showwarning('警告', f'破净股占比达到10分位数以下，头部区域呈现：'
                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
 
@@ -353,6 +372,6 @@ if __name__ == '__main__':
     # check_buffet_index()
     # check_ipo()
     # check_MA20_percent()
-    # check_below_net_asset()
+    check_below_net_asset()
     # check_high_low_statictics_legu()
     # check_high_low_turnover_statictics_legu()
