@@ -3,9 +3,9 @@ import json
 import os.path
 import time
 from __utils import messagebox
-# 市场京流动性：https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500
+# 市场京流动性：https://sc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500
 
-def find_data(main_url='https://tc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
+def find_data(main_url='https://sc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
               match_url=None, match_content=None) -> str:
     # -*- coding: utf-8 -*-
     # @Time   : 2022-08-27 11:59
