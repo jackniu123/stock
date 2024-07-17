@@ -11,10 +11,11 @@ import mplfinance as mpl
 import pysnooper
 import time
 import os
+from __utils import kline
 
 """
 # 实验日期：2024年3月25日
-# 实验方法：在成交量连续N日位于最近M月的地量时，买入；在成交量放大到月成交量的X倍时，卖出；止损设置为下跌Y%；
+# 实验方法：在成交量连续N日位于最近M月的地量(成交量均值的1/TIMES_OF_BUY)时，买入；在成交量放大到月成交量的X倍时，卖出；止损设置为下跌Y%；
 #          其中各个参数的设定，先取绝对值，后基于个股最近一年的特征做参数优化。
 #
 # 实验结果：
@@ -27,9 +28,15 @@ import os
     6，无9%无法交易判断，倍数是5，2023年：288股亏损，（4815-4616）=199股盈利.
     7，无9%无法交易判断，倍数是5，2023年，下跌才买入：215亏损，4815-4675=140股盈利
     8，无9%无法交易判断，倍数是5，2023年，下跌才买入，连续五天缩量，上涨五个点也可以卖出：3亏损，3股盈利
+    ===
+    1，20天地量，200天成交量均值，倍数是（1，2），全部年份；无9%无法买入交易判断，但有9%无法卖出交易判断，有5%止盈，无止损：2477股亏损，2873股盈利.
 """
 
-def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL):
+# TODO：
+# 1，结果显示上，把total的胜率、累计盈利统计出来。
+# 2, 结果显示上，能否把买卖点显示到曲线图上, 便于核对。
+
+def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL):
     try:
         # 创建数据库连接
         engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
@@ -50,9 +57,9 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
         print(sql_text)
 
         # has_reach_last_point = False
-        analyze_single_stock = False  # 分析单个股票的情况
-        analyze_recent_year = True
-        analyze_only_xiadie = True
+        analyze_single_stock = True  # 分析单个股票的情况
+        analyze_recent_year = False
+        analyze_only_xiadie_buy = False
 
         current_index = 0
 
@@ -62,8 +69,8 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                                                      'trade_count', 'profit_trade_count',
                                                      'begin_date', 'end_date'])
 
-        detail_filename = f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_detail.csv'
-        total_filename = f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_total.csv'
+        detail_filename = "./" + os.path.basename(__file__).split(".")[0] + "/" + str(datetime.datetime.now().date()) + f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_detail.csv'
+        total_filename = "./" + os.path.basename(__file__).split(".")[0] + "/" + str(datetime.datetime.now().date()) + f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_total.csv'
 
 
         #挨个分析股票
@@ -76,14 +83,14 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
             #     continue
 
             # 分析前多少个股票，该参数有助于在验证程序时，减小计算量
-            if (current_index < start_index[0] or current_index >= start_index[1]):
+            if current_index < index_range[0] or current_index >= index_range[1] :
                 current_index += 1
                 continue
             current_index += 1
 
             # 分析单个股票，用于验证程序时减小计算量
             if analyze_single_stock:
-                if not (ts_code[0] == '688536.SH'):
+                if not (ts_code[0] == '000020.SZ'):
                     continue
 
             print("+"*10, f'''begin analyze: {ts_code[0]}''', "+"*10)
@@ -165,17 +172,25 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                 if row_index < DAY_COUNT_OF_INSPECTION or row_index < CONTINUE_LOW_VOLUME_DAY_COUNT:
                     continue
 
-                #计算最近DAY_COUNT_OF_INSPECTION天的成交量平均值
+                #只在下跌时买入，那么买入当天的股价变动幅度要小于0
                 buy_price_threshold = 12
-                if analyze_only_xiadie:
+                if analyze_only_xiadie_buy:
                     buy_price_threshold = 0
 
                 if not has_buy:
-                    if df_daily.iloc[row_index]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 1]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 2]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 3]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY \
-                            and df_daily.iloc[row_index - 4]['vol'] < sum_of_volume/DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY:
+                    #连续CONTINUE_LOW_VOLUME_DAY_COUNT天地量：
+                    continue_low_volume_day_count_matched = True
+                    for continue_low_value_index in range(0, CONTINUE_LOW_VOLUME_DAY_COUNT):
+                        # if continue_low_value_index == CONTINUE_LOW_VOLUME_DAY_COUNT -1 :
+                        #     print(f'{continue_low_value_index}: CONTINUE_LOW_VOLUME_DAY_COUNT')
+                        #     print(df_daily.iloc[row_index - continue_low_value_index]['vol'])
+                        #     print(sum_of_volume / DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY)
+
+                        if df_daily.iloc[row_index - continue_low_value_index]['vol'] > sum_of_volume / DAY_COUNT_OF_INSPECTION / TIMES_OF_BUY:
+                            continue_low_volume_day_count_matched = False
+                            break
+
+                    if continue_low_volume_day_count_matched:
                         if row_value['pct_chg'] < buy_price_threshold:
                             buy_index = row_index
                             print('trade history---buy record++++++:\n', row_value)
@@ -190,11 +205,12 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                     else:
                         if df_daily.iloc[row_index]['vol'] > sum_of_volume/DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL \
                                 or df_daily.iloc[row_index]['close'] > buy_price * 1.05:
-                            if row_value['pct_chg'] > -12:
+                        # if df_daily.iloc[row_index]['vol'] > sum_of_volume / DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL:
+                            if row_value['pct_chg'] > -9:
                                 sell_index = row_index
                                 has_buy = False
                             else:
-                                print('trade history---sell record failed because too much pct_chg:\n', row_value)
+                                print('trade history---sell record failed because dieting pct_chg:\n', row_value)
 
                         # TODO：止损
 
@@ -239,6 +255,7 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                                                                  'ts_code': ts_code[0]},
                                                                 ignore_index=True)
 
+                    print(df_trade_history.tail(1))
                     # print("-" * 5, f''' end of this is {i}td elements.\n''')
                     #     print(f'curIndex = {curIndex}')
                     #     print(f'''curIndex = {curIndex} , the element is: {df_daily[curIndex]['trade_date']}''')
@@ -306,16 +323,32 @@ def volume_analizer(start_index, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
         conn.commit()
         conn.close()
 
+
 if __name__ == '__main__':
+
+    start_date = str((datetime.datetime.now().date() - datetime.timedelta(365)).strftime("%Y%m%d"))
+    end_date = str(datetime.datetime.now().date().strftime("%Y%m%d"))
+
+    kline.show_k_lines(['000020.SZ'], start_date, end_date)
+    exit(0)
+
     pymysql.install_as_MySQLdb()
 
-    # 实验方法：在成交量连续N日位于最近M天的地量时，买入；在成交量放大到月成交量的X倍且盈利时，卖出；止损设置为下跌10%；
-    #          其中各个参数的设定，先取绝对值，后基于个股最近一年的特征做参数优化。
+    if False:
+        # 实验方法：在成交量连续N日位于最近M天的地量时，买入；在成交量放大到月成交量的X倍且盈利时，卖出；止损设置为下跌10%；
+        #          其中各个参数的设定，先取绝对值，后基于个股最近一年的特征做参数优化。
 
-    CONTINUE_LOW_VOLUME_DAY_COUNT = 1
-    DAY_COUNT_OF_INSPECTION = 30
-    TIMES_OF_BUY = 5
-    TIMES_OF_SELL = 5
+        CONTINUE_LOW_VOLUME_DAY_COUNT = 1
+        DAY_COUNT_OF_INSPECTION = 30
+        TIMES_OF_BUY = 5
+        TIMES_OF_SELL = 5
+
+        volume_analizer((0,10000), CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL)
+
+    CONTINUE_LOW_VOLUME_DAY_COUNT = 20
+    DAY_COUNT_OF_INSPECTION = 200
+    TIMES_OF_BUY = 1
+    TIMES_OF_SELL = 2
 
     volume_analizer((0,10000), CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL)
 
