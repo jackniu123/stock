@@ -123,7 +123,7 @@ def get_name_by_code(stock_code:str):
     return stock_name
 
 
-
+# 参考：https://blog.csdn.net/Shepherdppz/article/details/117575286  https://www.cnblogs.com/shclbear/p/17231948.html
 
 import pandas as pd
 import numpy as np
@@ -237,6 +237,7 @@ class InterCandle:
         fig.canvas.mpl_connect('scroll_event', self.on_scroll)
 
     def refresh_plot(self, idx_start, idx_range):
+        print('refresh_plot idx_start:' + str(idx_start) + ' idx_range:' + str(idx_range))
         """ 根据最新的参数，重新绘制整个图表
         """
         all_data = self.data
@@ -262,6 +263,7 @@ class InterCandle:
         else:  # indicator == 'dema'
             ap.append(mpf.make_addplot(plot_data['dema'], ylabel='dema', ax=self.ax3))
 
+        print(plot_data)
         # 绘制图表
         mpf.plot(plot_data,
                  ax=self.ax1,
@@ -273,7 +275,7 @@ class InterCandle:
                  xrotation=0)
 
         # plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
-        plt.show()
+        self.fig.canvas.draw()
 
     def refresh_texts(self, display_data):
         """ 更新K线图上的价格文本
@@ -304,17 +306,14 @@ class InterCandle:
 
     def on_press(self, event):
         print('on_press 1 event.xdata:' + str(event.xdata) + str(type(event.xdata)))
+        # 不处理volume图
         if not (event.inaxes == self.ax1) and (not event.inaxes == self.ax3):
-            print('on_press 2')
-            print(event.inaxes)
             return
+        # 只处理左键
         if event.button != 1:
-            print('on_press 3')
-            print(event.button)
             return
         self.pressed = True
         self.xpress = event.xdata
-        print('on_press xpress:' + str(self.xpress) + str(type(self.xpress)))
 
         # 切换当前ma类型, 在ma、bb、none之间循环
         if event.inaxes == self.ax1 and event.dblclick == 1:
@@ -342,8 +341,8 @@ class InterCandle:
 
     def on_release(self, event):
         self.pressed = False
-        print('xdata:' + str(event.xdata) + str(type(event.xdata)))
-        print('xpress:' + str(self.xpress) + str(type(self.xpress)))
+        print('on_release xdata:' + str(event.xdata) + str(type(event.xdata)))
+        print('on_release xpress:' + str(self.xpress) + str(type(self.xpress)))
         dx = int(event.xdata - self.xpress)
         self.idx_start -= dx
         if self.idx_start <= 0:
@@ -351,11 +350,18 @@ class InterCandle:
         if self.idx_start >= len(self.data) - 100:
             self.idx_start = len(self.data) - 100
 
+        # self.ax1.clear()
+        # self.ax2.clear()
+        # self.ax3.clear()
+        # self.refresh_plot(self.idx_start, self.idx_range)
+
     def on_motion(self, event):
         if not self.pressed:
             return
         if not event.inaxes == self.ax1:
             return
+        print('on_motion xdata:' + str(event.xdata) + str(type(event.xdata)))
+        print('on_motion xpress:' + str(self.xpress) + str(type(self.xpress)))
         dx = int(event.xdata - self.xpress)
         new_start = self.idx_start - dx
         # 设定平移的左右界限，如果平移后超出界限，则不再平移
@@ -366,6 +372,9 @@ class InterCandle:
         self.ax1.clear()
         self.ax2.clear()
         self.ax3.clear()
+
+        print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
+        print('on_motion new_start:' + str(new_start))
 
         self.refresh_texts(self.data.iloc[new_start])
         self.refresh_plot(new_start, self.idx_range)
@@ -432,4 +441,6 @@ if __name__ == '__main__':
     candle.idx_range = 100
     candle.refresh_texts(data.iloc[249])
     candle.refresh_plot(150, 100)
+    plt.show()
+    # input()
 
