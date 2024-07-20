@@ -124,7 +124,7 @@ def get_name_by_code(stock_code:str):
 
 
 # 参考：https://blog.csdn.net/Shepherdppz/article/details/117575286  https://www.cnblogs.com/shclbear/p/17231948.html
-
+# https://geek-docs.com/matplotlib/matplotlib-top-tutorials/1013100_matplotlib_subplot2grid_function.html
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -237,7 +237,7 @@ class InterCandle:
         fig.canvas.mpl_connect('scroll_event', self.on_scroll)
 
     def refresh_plot(self, idx_start, idx_range):
-        print('refresh_plot idx_start:' + str(idx_start) + ' idx_range:' + str(idx_range))
+        # print('refresh_plot idx_start:' + str(idx_start) + ' idx_range:' + str(idx_range))
         """ 根据最新的参数，重新绘制整个图表
         """
         all_data = self.data
@@ -263,7 +263,7 @@ class InterCandle:
         else:  # indicator == 'dema'
             ap.append(mpf.make_addplot(plot_data['dema'], ylabel='dema', ax=self.ax3))
 
-        print(plot_data)
+        # print(plot_data)
         # 绘制图表
         mpf.plot(plot_data,
                  ax=self.ax1,
@@ -271,10 +271,9 @@ class InterCandle:
                  addplot=ap,
                  type='candle',
                  style=self.style,
-                 datetime_format='%Y-%m',
+                 datetime_format='%Y-%m-%d',
                  xrotation=0)
 
-        # plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
         self.fig.canvas.draw()
 
     def refresh_texts(self, display_data):
@@ -304,8 +303,10 @@ class InterCandle:
         self.t4.set_color(close_number_color)
         self.t5.set_color(close_number_color)
 
+        self.fig.canvas.draw()
+
     def on_press(self, event):
-        print('on_press 1 event.xdata:' + str(event.xdata) + str(type(event.xdata)))
+        # print('on_press 1 event.xdata:' + str(event.xdata) + str(type(event.xdata)))
         # 不处理volume图
         if not (event.inaxes == self.ax1) and (not event.inaxes == self.ax3):
             return
@@ -340,9 +341,12 @@ class InterCandle:
         self.refresh_plot(self.idx_start, self.idx_range)
 
     def on_release(self, event):
+        # print('on_release xdata:' + str(event.xdata) + str(type(event.xdata)))
         self.pressed = False
-        print('on_release xdata:' + str(event.xdata) + str(type(event.xdata)))
-        print('on_release xpress:' + str(self.xpress) + str(type(self.xpress)))
+        cur_idx = int(event.xdata / 100 * self.idx_range)
+        if cur_idx > self.idx_range:
+            cur_idx = self.idx_range
+
         dx = int(event.xdata - self.xpress)
         self.idx_start -= dx
         if self.idx_start <= 0:
@@ -350,18 +354,25 @@ class InterCandle:
         if self.idx_start >= len(self.data) - 100:
             self.idx_start = len(self.data) - 100
 
-        # self.ax1.clear()
-        # self.ax2.clear()
-        # self.ax3.clear()
-        # self.refresh_plot(self.idx_start, self.idx_range)
+        self.refresh_texts(self.data.iloc[self.idx_start + cur_idx])
 
     def on_motion(self, event):
+
+        # x, y = event.xdata, event.ydata
+        # self.ax1.format_coord(x, y)
+        # self.fig.canvas.draw_idle()
+        # self.ax1.text(0.5, 0.8, str((x, y)),
+        #         horizontalalignment='center',
+        #         verticalalignment='center',
+        #         transform=self.ax1.transAxes)
+
+        # print('on_motion event:' + str(event))
         if not self.pressed:
             return
         if not event.inaxes == self.ax1:
             return
         print('on_motion xdata:' + str(event.xdata) + str(type(event.xdata)))
-        print('on_motion xpress:' + str(self.xpress) + str(type(self.xpress)))
+        # print('on_motion xpress:' + str(self.xpress) + str(type(self.xpress)))
         dx = int(event.xdata - self.xpress)
         new_start = self.idx_start - dx
         # 设定平移的左右界限，如果平移后超出界限，则不再平移
@@ -373,8 +384,8 @@ class InterCandle:
         self.ax2.clear()
         self.ax3.clear()
 
-        print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
-        print('on_motion new_start:' + str(new_start))
+        # print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
+        # print('on_motion new_start:' + str(new_start))
 
         self.refresh_texts(self.data.iloc[new_start])
         self.refresh_plot(new_start, self.idx_range)
