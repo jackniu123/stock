@@ -263,6 +263,12 @@ class InterCandle:
         else:  # indicator == 'dema'
             ap.append(mpf.make_addplot(plot_data['dema'], ylabel='dema', ax=self.ax3))
 
+        self.sell_signal = True
+        if self.sell_signal == True:
+            sell_signal = plot_data[['close']].copy()
+            sell_signal.loc[sell_signal['close'] < 2.5] = np.nan
+            ap.append(mpf.make_addplot(sell_signal, type='scatter', markersize=100, marker='v', color=(0.75, 0.6, 0.6), ax=self.ax1))
+
         # print(plot_data)
         # 绘制图表
         mpf.plot(plot_data,
