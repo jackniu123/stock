@@ -3,6 +3,7 @@ import json
 import os.path
 import time
 from __utils import messagebox
+from __utils import result_overview
 # 市场京流动性：https://sc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500
 
 def find_data(main_url='https://sc.macromicro.me/charts/81331/mei-guo-shi-chang-jing-liu-dong-xing-yu-sp500',
@@ -186,15 +187,28 @@ def check_liquidity_chance_and_risk():
         print('liquidity delta 05分位数：', liquidity_delta_05)
 
         if last_liquidity_delta_scaled > liquidity_delta_95:
-            messagebox.showwarning('警告', f'流动性大幅提升，请关注买入机会！\n '
-                                           f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
-                                           f'0.95分位数是{liquidity_delta_95}\n '
-                                           f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
-        if last_liquidity_delta_scaled < liquidity_delta_05:
-            messagebox.showwarning('警告', f'流动性大幅减少，请关注风险，及时卖出！\n '
-                                           f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
-                                           f'0.05分位数是{liquidity_delta_05}\n '
-                                           f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
+            # messagebox.showwarning('警告', f'流动性大幅提升，请关注买入机会！\n '
+            #                                f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
+            #                                f'0.95分位数是{liquidity_delta_95}\n '
+            #                                f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
+            result_overview.collect_result(label='流动性变化', value=(f'流动性大幅提升！\n '
+                                                                 f'流动性提升幅度 = {last_liquidity_delta_scaled} \n'
+                                                                 f'0.95分位数是{liquidity_delta_95}\n '
+                                                                 f'最近的流动性数据发布日期是：{last_liquidity_release_date}', "", ""))
+        elif last_liquidity_delta_scaled < liquidity_delta_05:
+            # messagebox.showwarning('警告', f'流动性大幅减少，请关注风险，及时卖出！\n '
+            #                                f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n '
+            #                                f'0.05分位数是{liquidity_delta_05}\n '
+            #                                f'最近的流动性数据发布日期是：{last_liquidity_release_date}')
+            result_overview.collect_result(label='流动性变化', value=("", "", f'流动性大幅下降\n '
+                                                                 f'流动性降低幅度 = {last_liquidity_delta_scaled} \n'
+                                                                 f'0.05分位数是{liquidity_delta_05}\n '
+                                                                 f'最近的流动性数据发布日期是：{last_liquidity_release_date}'))
+        else:
+            messagebox.collect_result(label='流动性变化', value=("", f'流动性平稳\n '
+                                                                 f'last_liquidity_delta_scaled = {last_liquidity_delta_scaled} \n'
+                                                                 f'0.95分位数是{liquidity_delta_95}\n '
+                                                                 f'最近的流动性数据发布日期是：{last_liquidity_release_date}', ""))
         messagebox.logger.warning('===end.')
 
 

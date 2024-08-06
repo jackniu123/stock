@@ -2,6 +2,7 @@ import akshare as ak
 import sys
 sys.path.append('D:/不要删除牛爸爸的程序/') # 绝对路径
 from __utils import messagebox
+from __utils import result_overview
 import datetime
 import re
 import matplotlib.pyplot as plt
@@ -42,12 +43,24 @@ def check_buffet_index():
     print(f'current buffet index is {{{current_buffet_index}}}')
 
     if current_buffet_index < 0.6 or stock_buffett_index_lg_df.iloc[-1]['近十年分位数'] < 0.15:
-        messagebox.showinfo('提示',
-                            f'当前巴菲特指数超级便宜：{{{current_buffet_index}}} \n {{{stock_buffett_index_lg_df.iloc[-1]}}}')
+        # messagebox.showinfo('提示',
+        #                     f'当前巴菲特指数超级便宜：{{{current_buffet_index}}} \n {{{stock_buffett_index_lg_df.iloc[-1]}}}')
+        result_overview.collect_result(label='巴菲特指标',
+                                       value=(f'当前巴菲特指数超级便宜：{{{current_buffet_index}}} \n '
+                                              f'{{{stock_buffett_index_lg_df.iloc[-1]}}}',
+                                                                  "", ""))
+    elif current_buffet_index > 1 or stock_buffett_index_lg_df.iloc[-1]['近十年分位数'] > 0.9:
+        # messagebox.showerror('警告',
+        #                      f'！！！你在玩火，巴菲特指数已经高达：{{{current_buffet_index}}} \n {{{stock_buffett_index_lg_df.iloc[-1]}}}')
+        result_overview.collect_result(label='巴菲特指标',
+                                       value=("", "",
+                                              f'！！！你在玩火，巴菲特指数已经高达：{{{current_buffet_index}}} \n '
+                                              f'{{{stock_buffett_index_lg_df.iloc[-1]}}}'))
+    else:
+        result_overview.collect_result(label='巴菲特指标',
+                                       value=("", f'当前巴菲特指数不高不低：{{{current_buffet_index}}} \n '
+                                              f'{{{stock_buffett_index_lg_df.iloc[-1]}}}', ""))
 
-    if current_buffet_index > 1 or stock_buffett_index_lg_df.iloc[-1]['近十年分位数'] > 0.9:
-        messagebox.showerror('警告',
-                             f'！！！你在玩火，巴菲特指数已经高达：{{{current_buffet_index}}} \n {{{stock_buffett_index_lg_df.iloc[-1]}}}')
 
     # print(stock_buffett_index_lg_df)
 
@@ -81,7 +94,9 @@ def check_ipo():
                             b_has_ipo = True
 
     if not b_has_ipo:
-        messagebox.showinfo('提示', f'没有IPO了，最近的IPO情况是：{{{last_ipo}}}')
+        # messagebox.showinfo('提示', f'没有IPO了，最近的IPO情况是：{{{last_ipo}}}')
+        result_overview.collect_result(label='IPO指标',
+                                       value=(f'没有IPO了，最近的IPO情况是：{{{last_ipo}}}', "", ""))
 
 import sys
 import threading
@@ -180,10 +195,13 @@ def check_MA20_percent():
         print(percent_array[-1])
 
         if percent_array[-1] > 80:
-            messagebox.showwarning('警告', f"""{date_array[-1]} 超过20日均线的个股比例超过了80%：{percent_array[-1]}""")
+            # messagebox.showwarning('警告', f"""{date_array[-1]} 超过20日均线的个股比例超过了80%：{percent_array[-1]}""")
+            result_overview.collect_result(label="20日均线超过比例", value=("", "", f"""{date_array[-1]} 超过20日均线的个股比例超过了80%：{percent_array[-1]}"""))
         elif percent_array[-1] < 10:
-            messagebox.showwarning('警告', f"""{date_array[-1]} 超过20日均线的个股比例低于了10%：{percent_array[-1]}""")
+            # messagebox.showwarning('警告', f"""{date_array[-1]} 超过20日均线的个股比例低于了10%：{percent_array[-1]}""")
+            result_overview.collect_result(label="20日均线超过比例", value=(f"""{date_array[-1]} 超过20日均线的个股比例低于了10%：{percent_array[-1]}""", "", ""))
         else:
+            result_overview.collect_result(label="20日均线超过比例", value=("", f"""{date_array[-1]} 超过20日均线的个股比例：{percent_array[-1]}""", ""))
             return
 
         fig, ax = plt.subplots(1, 1)
@@ -227,16 +245,24 @@ def check_below_net_asset():
     below_net_asset_ratio_10 = stock_a_below_net_asset_statistics_df['below_net_asset_ratio'].quantile(0.1)
     if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] > below_net_asset_ratio_95 \
             or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] > below_net_asset_ratio_95:
-        messagebox.showwarning('警告', f'破净股占比超过95分位数，底部区域呈现：'
+        # messagebox.showwarning('警告', f'破净股占比超过95分位数，底部区域呈现：'
+        #                                f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
+        #                                f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
+        result_overview.collect_result(label="破净股比例", value=(f'破净股占比超过95分位数，底部区域呈现：'
                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
-                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
-
-    if stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < below_net_asset_ratio_10\
+                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}', "", ""))
+    elif stock_a_below_net_asset_statistics_df.iloc[-1]['below_net_asset_ratio'] < below_net_asset_ratio_10\
             or stock_a_below_net_asset_statistics_df.iloc[-2]['below_net_asset_ratio'] < below_net_asset_ratio_10:
-        messagebox.showwarning('警告', f'破净股占比达到10分位数以下，头部区域呈现：'
+        # messagebox.showwarning('警告', f'破净股占比达到10分位数以下，头部区域呈现：'
+        #                                f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
+        #                                f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
+        result_overview.collect_result(label="破净股比例", value=("", "", f'破净股占比达到10分位数以下，头部区域呈现：'
                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
-                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}')
-
+                                       f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}'))
+    else:
+        result_overview.collect_result(label="破净股比例", value=("", f'破净股占比介于10分位和95分位之间：'
+                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-1]}'
+                                        f'\n\n {stock_a_below_net_asset_statistics_df.iloc[-2]}', ""))
 
     # print()
 """
@@ -321,18 +347,26 @@ def check_high_low_turnover_statictics_legu():
 
     if belowPermill8_percent > 60 or \
             belowPermill8_percent_1 > 60:
-        messagebox.showwarning('警告',
-                               f'大盘低于0.8换手率的股票占比超过了60，请注意市场底部机会：'
+        # messagebox.showwarning('警告',
+        #                        f'大盘低于0.8换手率的股票占比超过了60，请注意市场底部机会：'
+        #                        f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
+        #                        f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
+        result_overview.collect_result(label="低换手率股票占比", value=(f'大盘低于0.8换手率的股票占比超过了60，请注意市场底部机会：'
                                f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
-                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
-
-    if belowPermill8_percent < 5 or \
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}', "", ""))
+    elif belowPermill8_percent < 5 or \
             belowPermill8_percent_1 < 5:
-        messagebox.showwarning('警告',
-                               f'大盘低于0.8换手率的股票占比少于10，请注意市场顶部风险：'
+        # messagebox.showwarning('警告',
+        #                        f'大盘低于0.8换手率的股票占比少于10，请注意市场顶部风险：'
+        #                        f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
+        #                        f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
+        result_overview.collect_result(label="低换手率股票占比", value=("", "", f'大盘低于0.8换手率的股票占比少于10，请注意市场顶部风险：'
                                f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
-                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}')
-
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}'))
+    else:
+        result_overview.collect_result(label="低换手率股票占比", value=("", f'大盘低于0.8换手率的股票占比介于10%和60%之间：'
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-1]} '
+                               f'\n\n {stock_high_low_turnover_statictics_df.iloc[-2]}', ""))
     return
 
 def check_high_low_statictics_legu():
@@ -342,17 +376,27 @@ def check_high_low_statictics_legu():
 
     if stock_a_high_low_statistics_df.iloc[-1]['high60'] > 60 or \
             stock_a_high_low_statistics_df.iloc[-2]['high60'] > 60:
-        messagebox.showwarning('警告',
-                               f'中证500创60日新高的个股超过60支，请注意市场阶段性顶部风险：'
+        # messagebox.showwarning('警告',
+        #                        f'中证500创60日新高的个股超过60支，请注意市场阶段性顶部风险：'
+        #                        f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
+        #                        f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}')
+        result_overview.collect_result(label="中证500创60日新高个股数", value=("", "", f'中证500创60日新高的个股超过60支，请注意市场阶段性顶部风险：'
                                f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
-                               f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}')
-
-    if stock_a_high_low_statistics_df.iloc[-1]['high60'] < 5 or \
+                               f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}'))
+    elif stock_a_high_low_statistics_df.iloc[-1]['high60'] < 5 or \
             stock_a_high_low_statistics_df.iloc[-2]['high60'] < 5:
-        messagebox.showwarning('警告',
-                               f'中证500创60日新高的个股少于5支，请注意市场阶段性底部机会：'
+        # messagebox.showwarning('警告',
+        #                        f'中证500创60日新高的个股少于5支，请注意市场阶段性底部机会：'
+        #                        f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
+        #                        f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}')
+        result_overview.collect_result(label="中证500创60日新高个股数", value=(f'中证500创60日新高的个股少于5支，请注意市场阶段性底部机会：'
                                f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
-                               f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}')
+                               f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}', "", ""))
+    else:
+        result_overview.collect_result(label="中证500创60日新高个股数",
+                                       value=("", f'中证500创60日新高的个股数介于5到60之间：'
+                                              f'\n\n {stock_a_high_low_statistics_df.iloc[-1]} '
+                                              f'\n\n {stock_a_high_low_statistics_df.iloc[-2]}', ""))
 
 
 # https://legulegu.com/stockdata/bottom-research-nav

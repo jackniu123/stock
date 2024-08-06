@@ -4,6 +4,7 @@ import sys
 import time
 import threading
 from __utils import messagebox
+from __utils import result_overview
 sys.path.append('D:/不要删除牛爸爸的程序') # 绝对路径
 sys.path.append('D:/不要删除牛爸爸的程序/工具软件') # 绝对路径
 
@@ -55,4 +56,5 @@ if __name__ == '__main__':
 
     from __utils import messagebox
     messagebox.dump()
+    result_overview.show_result()
     messagebox.logger.warning('=================finished========================')
