@@ -1,9 +1,7 @@
 # https://www.runoob.com/python/python-gui-tkinter.html
 # !/usr/bin/python
 # -*- coding: UTF-8 -*-
-
-
-
+from time import sleep
 # Python3.x 导入方法
 from tkinter import *
 from tkinter import ttk
@@ -20,7 +18,7 @@ def collect_result(label='标签1', value=("", "", "")):
     values.append(value)
     messagebox.logger.warning(value)
 
-def show_result():
+def show_result_bak():
     root = Tk()  # 创建窗口对象的背景色
     # 创建两个列表
 
@@ -49,6 +47,108 @@ def show_result():
     # root.geometry("500x500+500+100")
     root.mainloop()  # 进入消息循环
 
+
+def show_result():
+
+    replace_string = """
+        <table>
+        <tr>
+            <th>指标名称</th>
+            <th>买入信号</th>
+            <th>无所谓</th>
+            <th>卖出信号</th>
+        </tr>
+    """
+
+
+    for i in range(len(labels)):
+        replace_string += f"""
+        <tr>
+            <td>{labels[i]}</td>
+            <td>{values[i][0]}</td>
+            <td>{values[i][1]}</td>
+            <td>{values[i][2]}</td>
+        </tr>
+        """
+
+    replace_string += "</table>"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang = "en">
+
+    <head>
+    <meta charset = "UTF-8">
+    <title> Title </title>
+    </head>
+    
+    <style>
+    table {{
+        border-right: 1px solid #000000;
+        border-bottom: 1px solid #000000;
+        text-align: left;
+    }}
+    
+    table th {{
+        border-left: 1px solid #000000;
+        border-top: 1px solid #000000;
+    }}
+    
+    table td {{
+        border-left: 1px solid #000000;
+        border-top: 1px solid #000000;
+    }}
+    </style>
+
+    <body>
+    <div>
+    <h1> 择时信号看板 </h1>
+    </div>
+    
+    {replace_string}
+    
+    </body>
+
+    </html>
+    """
+
+    print(html_content)
+    # 将HTML内容保存到文件
+    with open("D:/不要删除牛爸爸的程序/__utils/result_overview.html", "w", encoding='utf-8') as f:
+        f.write(html_content)
+
+    from selenium import webdriver
+    from selenium.common.exceptions import WebDriverException
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+
+    options = Options()
+
+    caps = {
+        "browserName": "chrome",
+        'goog:loggingPrefs': {'performance': 'ALL'}  # 开启日志性能监听
+    }
+    # 将caps添加到options中
+    for key, value in caps.items():
+        options.set_capability(key, value)
+    # options.add_argument('--no-sandbox')  # 解决DevToolsActivePort文件不存在的报错
+    # options.add_argument('--window-size=1,1')  # 指定浏览器分辨率
+    # options.add_argument('--disable-gpu')  # 谷歌文档提到需要加上这个属性来规避bug
+    # options.add_argument('--hide-scrollbars')  # 隐藏滚动条, 应对一些特殊页面
+    # options.add_argument('blink-settings=imagesEnabled=false')  # 不加载图片, 提升速度
+    # options.add_argument('--headless')  # 浏览器不提供可视化页面. linux下如果系统不支持可视化不加这条会启动失败
+    options.add_argument('--start-maximized')
+    # options.add_argument('--no-startup-window')
+    # options.add_argument('--window-position=2900,2024')
+    options.binary_location = "D:\Program Files (x86)\chrome-win64\chrome-win64\chrome.exe"  # 指定Chrome浏览器的路径
+    # 启动chromedriver
+    chromedriver_path = "D:\Program Files (x86)\chromedriver-win64\chromedriver-win64\chromedriver.exe"  # 指定ChromeDriver的路径
+    service = Service(chromedriver_path)
+    service.start()
+    browser = webdriver.Chrome(service=service, options=options)  # 启动浏览器
+    # browser.set_window_size(1000, 700)
+    browser.get("D:/不要删除牛爸爸的程序/__utils/result_overview.html")
+    sleep(1000)
 
 if __name__ == '__main__':
     collect_result(label="1", value=("A1", "This is a very long piece of text that needs to be wrapped in the TreeView widget in order to be completely visible.", "C1"))
