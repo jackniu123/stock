@@ -325,13 +325,6 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
 
 
 if __name__ == '__main__':
-
-    start_date = str((datetime.datetime.now().date() - datetime.timedelta(365)).strftime("%Y%m%d"))
-    end_date = str(datetime.datetime.now().date().strftime("%Y%m%d"))
-
-    kline.show_k_lines(['000020.SZ'], start_date, end_date)
-    exit(0)
-
     pymysql.install_as_MySQLdb()
 
     if False:
@@ -345,14 +338,29 @@ if __name__ == '__main__':
 
         volume_analizer((0,10000), CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL)
 
+
     CONTINUE_LOW_VOLUME_DAY_COUNT = 20
     DAY_COUNT_OF_INSPECTION = 200
     TIMES_OF_BUY = 1
     TIMES_OF_SELL = 2
 
-    volume_analizer((0,10000), CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL)
+    detail_filename = "./" + os.path.basename(__file__).split(".")[0] + "/" + str(
+        datetime.datetime.now().date()) + f'量价分析_{CONTINUE_LOW_VOLUME_DAY_COUNT}_{DAY_COUNT_OF_INSPECTION}_{TIMES_OF_BUY}_{TIMES_OF_SELL}_detail.csv'
 
-    exit(0)
+    if not os.path.exists(detail_filename):
+        volume_analizer((0,10000), CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INSPECTION, TIMES_OF_BUY, TIMES_OF_SELL)
+    else:
+        data = pd.read_csv(detail_filename)
+        pd.options.display.max_columns = None
+        print(data)
+
+        daily_by_code = kline.get_daily_by_code(stock_code='000020.SZ')
+        print(daily_by_code)
+        daily_will_show = daily_by_code.copy()
+        daily_will_show['buy_price'] = np.nan
+        daily_will_show['sell_price'] = np.nan
+        kline.show_trade_history(daily_will_show)
+
 
 
 
