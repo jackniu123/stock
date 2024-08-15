@@ -13,6 +13,8 @@ __all__ = ["collect_result", "show_result"]
 labels = []
 values = []
 
+web_info = [("深圳房地产交易数据", "https://zjj.sz.gov.cn/xxgk/ztzl/pubdata/")]
+
 def collect_result(label='标签1', value=("", "", "")):
     labels.append(label)
     values.append(value)
@@ -51,7 +53,7 @@ def show_result_bak():
 def show_result():
 
     replace_string = """
-        <table>
+        <table style="white-space: pre-line;">
         <tr>
             <th>指标名称</th>
             <th>买入信号</th>
@@ -72,6 +74,21 @@ def show_result():
         """
 
     replace_string += "</table>"
+
+    replace_string_more_data = """
+        <table style="white-space: pre-line;">
+        <tr>
+            <th>指标名称</th>
+        </tr>
+    """
+
+    for i in range(len(web_info)):
+        replace_string_more_data += f"""
+        <tr>
+            <td><a href="{web_info[i][1]}">{web_info[i][0]}</a></td>
+        </tr>
+        """
+    replace_string_more_data += "</table>"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -106,6 +123,8 @@ def show_result():
     </div>
     
     {replace_string}
+    
+    {replace_string_more_data}
     
     </body>
 
@@ -151,6 +170,6 @@ def show_result():
     sleep(1000)
 
 if __name__ == '__main__':
-    collect_result(label="1", value=("A1", "This is a very long piece of text that needs to be wrapped in the TreeView widget in order to be completely visible.", "C1"))
+    collect_result(label="1", value=("A1", "This is a very long piece of text that needs to be wrapped in the TreeView widget\r\n in order to be completely visible.", "C1"))
     collect_result(label="2", value=("A2", "B2", "C2"))
     show_result()
