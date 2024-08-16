@@ -13,7 +13,8 @@ __all__ = ["collect_result", "show_result"]
 labels = []
 values = []
 
-web_info = [("深圳房地产交易数据", "https://zjj.sz.gov.cn/xxgk/ztzl/pubdata/")]
+web_info = [("深圳房地产交易数据", "https://zjj.sz.gov.cn/xxgk/ztzl/pubdata/"),
+            ("appStore数据", "https://app.diandian.com/app/13uouqg2qvqr7b1/ios?market=1&country=75&id=6466232155")]
 
 def collect_result(label='标签1', value=("", "", "")):
     labels.append(label)
@@ -76,6 +77,7 @@ def show_result():
     replace_string += "</table>"
 
     replace_string_more_data = """
+        <a> 先行指标 </a>
         <table style="white-space: pre-line;">
         <tr>
             <th>指标名称</th>
