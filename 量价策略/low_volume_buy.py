@@ -13,6 +13,10 @@ import time
 import os
 from __utils import kline
 
+analyze_single_stock = True  # 分析单个股票的情况，有助于验证程序的运行情况
+analyze_recent_year = False
+analyze_only_xiadie_buy = False
+
 """
 # 实验日期：2024年3月25日
 # 实验方法：在成交量连续N日位于最近M月的地量(成交量均值的1/TIMES_OF_BUY)时，买入；在成交量放大到月成交量的X倍时，卖出；止损设置为下跌Y%；
@@ -57,9 +61,6 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
         print(sql_text)
 
         # has_reach_last_point = False
-        analyze_single_stock = True  # 分析单个股票的情况
-        analyze_recent_year = False
-        analyze_only_xiadie_buy = False
 
         current_index = 0
 
@@ -95,9 +96,11 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
 
             print("+"*10, f'''begin analyze: {ts_code[0]}''', "+"*10)
 
-            sql_text = text(f''' select * from daily where ts_code=\'{ts_code[0]}\' limit 10000''')
             if analyze_recent_year:
                 sql_text = text(f''' select * from daily where ts_code=\'{ts_code[0]}\' and trade_date like \'2023____\' limit 10000''')
+            else:
+                sql_text = text(f''' select * from daily where ts_code=\'{ts_code[0]}\' limit 10000''')
+
 
             # begin_time = time.perf_counter()
             result = conn.execute(sql_text)
@@ -119,7 +122,7 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
 
             # print('length of result:', len(all_data))
 
-            if len(all_data) < 200: # 跳过交易日不够500的新股，不然会index out of range
+            if len(all_data) < 200: # 跳过交易日不够200的新股，不然会index out of range, 另外新股的成交量数据不稳
                 continue
 
             # print(all_data[1])
@@ -178,7 +181,7 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                     buy_price_threshold = 0
 
                 if not has_buy:
-                    #连续CONTINUE_LOW_VOLUME_DAY_COUNT天地量：
+                    #连续CONTINUE_LOW_VOLUME_DAY_COUNT天地量，那么下面的变量将为True，连续地量后触发买入操作：
                     continue_low_volume_day_count_matched = True
                     for continue_low_value_index in range(0, CONTINUE_LOW_VOLUME_DAY_COUNT):
                         # if continue_low_value_index == CONTINUE_LOW_VOLUME_DAY_COUNT -1 :
@@ -203,6 +206,7 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                         sell_index = row_index
                         has_buy = False
                     else:
+                        # 地量买入后，一旦有一天放量，就卖出。
                         if df_daily.iloc[row_index]['vol'] > sum_of_volume/DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL \
                                 or df_daily.iloc[row_index]['close'] > buy_price * 1.05:
                         # if df_daily.iloc[row_index]['vol'] > sum_of_volume / DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL:

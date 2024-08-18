@@ -387,7 +387,11 @@ class InterCandle:
     def on_release(self, event):
         # print('on_release xdata:' + str(event.xdata) + str(type(event.xdata)))
         self.pressed = False
-        cur_idx = int(event.xdata / 100 * self.idx_range)
+        cur_idx = int(event.xdata)
+        # print(event.xdata)
+        # print(self.idx_range)
+        # print(self.idx_start)
+
         if cur_idx > self.idx_range:
             cur_idx = self.idx_range
 
@@ -489,7 +493,11 @@ def show_trade_history(data=None):
     else:
         data.set_index('trade_date', inplace=True)
     data.index = pd.to_datetime(data.index)
-    data.rename(columns={'vol':'volume'}, inplace=True)
+    data.rename(columns={'vol': 'volume'}, inplace=True)
+    data.rename(columns={'change': '_change'}, inplace=True)
+    data.rename(columns={'pct_change': 'pct_chg'}, inplace=True)
+    data.rename(columns={'value': 'amount'}, inplace=True)
+    data.rename(columns={'last_close': 'pre_close'}, inplace=True)
 
     candle = InterCandle(data, my_style)
     candle.idx_start = 150
