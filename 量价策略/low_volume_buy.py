@@ -16,6 +16,7 @@ from __utils import kline
 analyze_single_stock = True  # 分析单个股票的情况，有助于验证程序的运行情况
 analyze_recent_year = False
 analyze_only_xiadie_buy = False
+b_take_lose_take_profit = False
 
 """
 # 实验日期：2024年3月25日
@@ -208,8 +209,7 @@ def volume_analizer(index_range, CONTINUE_LOW_VOLUME_DAY_COUNT, DAY_COUNT_OF_INS
                     else:
                         # 地量买入后，一旦有一天放量，就卖出。
                         if df_daily.iloc[row_index]['vol'] > sum_of_volume/DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL \
-                                or df_daily.iloc[row_index]['close'] > buy_price * 1.05:
-                        # if df_daily.iloc[row_index]['vol'] > sum_of_volume / DAY_COUNT_OF_INSPECTION * TIMES_OF_SELL:
+                                or (b_take_lose_take_profit and df_daily.iloc[row_index]['close'] > buy_price * 1.05):
                             if row_value['pct_chg'] > -9:
                                 sell_index = row_index
                                 has_buy = False
@@ -363,6 +363,19 @@ if __name__ == '__main__':
         daily_will_show = daily_by_code.copy()
         daily_will_show['buy_price'] = np.nan
         daily_will_show['sell_price'] = np.nan
+        for row_index, row_value in data.iterrows():
+            # print('-' * 10)
+            # print(daily_will_show[daily_will_show['trade_date'] == str(row_value['buy_date'])])
+            # print(row_value['buy_date'])
+            # print('*' * 10)
+            daily_will_show.loc[daily_will_show['trade_date'] == str(row_value['buy_date']), ["buy_price"]] = row_value['buy_price']
+            daily_will_show.loc[daily_will_show['trade_date'] == str(row_value['sell_date']), ['sell_price']] = row_value['sell_price']
+            #
+            # print(row_value['buy_price'])
+            # print(daily_will_show[daily_will_show['trade_date'] == str(row_value['buy_date'])]['buy_price'])
+
+
+        print(daily_will_show)
         kline.show_trade_history(daily_will_show)
 
 

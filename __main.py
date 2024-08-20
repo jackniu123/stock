@@ -15,14 +15,14 @@ if __name__ == '__main__':
         try:
             from tushare_get_data import tushare_get_data_main
             tushare_get_data_main()
-            from 工具软件.stock_assistant_new_stock_informer import stock_assistant_new_stock_informer_main
-            stock_assistant_new_stock_informer_main()
             from 工具软件.stock_assistant_price_alert import stock_assistant_price_alert_main
             stock_assistant_price_alert_main()
             from 工具软件.stock_assistant_add import stock_assistant_add_main
             stock_assistant_add_main()
             from 工具软件.stock_assitant_liquidity_inspector import check_liquidity_chance_and_risk
             check_liquidity_chance_and_risk()
+            from 工具软件.stock_assistant_new_stock_informer import stock_assistant_new_stock_informer_main
+            stock_assistant_new_stock_informer_main()
         except Exception as e:
             messagebox.logger.warning('!!!exception occurred:' + e)
         except:

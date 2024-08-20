@@ -500,10 +500,10 @@ def show_trade_history(data=None):
     data.rename(columns={'last_close': 'pre_close'}, inplace=True)
 
     candle = InterCandle(data, my_style)
-    candle.idx_start = 150
-    candle.idx_range = 100
-    candle.refresh_texts(data.iloc[249])
-    candle.refresh_plot(150, 100)
+    candle.idx_start = 0
+    candle.idx_range = len(data)
+    candle.refresh_texts(data.iloc[candle.idx_start])
+    candle.refresh_plot(candle.idx_start, candle.idx_range)
     plt.show()
 
 
