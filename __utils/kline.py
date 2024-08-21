@@ -275,6 +275,9 @@ class InterCandle:
         fig.canvas.mpl_connect('scroll_event', self.on_scroll)
 
     def refresh_plot(self, idx_start, idx_range):
+        self.ax1.clear()
+        self.ax2.clear()
+        # self.ax3.clear()
         # print('refresh_plot idx_start:' + str(idx_start) + ' idx_range:' + str(idx_range))
         """ 根据最新的参数，重新绘制整个图表
         """
@@ -307,13 +310,31 @@ class InterCandle:
         sell_signal = plot_data[['sell_price']]
         ap.append(mpf.make_addplot(sell_signal, type='scatter', markersize=100, marker='^', color=(0.75, 0.6, 0.6),
                                    ax=self.ax1))
+
+        sell_signal_loss = plot_data[['sell_price']]
+        last_buy = 0
+        for i in range(0, len(buy_signal)):
+            # print("*"*10 )
+            # print(buy_signal.iloc[i])
+            if not pd.isnull(buy_signal.iloc[i]['buy_price']):
+                last_buy = buy_signal.iloc[i]['buy_price']
+            if not pd.isnull(sell_signal_loss.iloc[i]['sell_price']) and sell_signal_loss.iloc[i]['sell_price'] >= last_buy:
+                sell_signal_loss.iloc[i]['sell_price'] = np.NAN
+
+        ap.append(mpf.make_addplot(sell_signal_loss, type='scatter', markersize=100, marker='^', color=(0.75, 0.1, 0.1),
+                                   ax=self.ax1))
+
         # print(plot_data)
         # 绘制图表
+        candle_type = 'candle'
+        if len(plot_data) > 500:
+            candle_type = 'line'
+
         mpf.plot(plot_data,
                  ax=self.ax1,
                  volume=self.ax2,
                  addplot=ap,
-                 type='candle',
+                 type=candle_type,
                  style=self.style,
                  datetime_format='%Y-%m-%d',
                  xrotation=0)
@@ -359,6 +380,7 @@ class InterCandle:
             return
         self.pressed = True
         self.xpress = event.xdata
+        self.y = event.y
 
         # # 切换当前ma类型, 在ma、bb、none之间循环
         # if event.inaxes == self.ax1 and event.dblclick == 1:
@@ -379,21 +401,45 @@ class InterCandle:
         #     else:
         #         self.indicator = 'macd'
 
-        self.ax1.clear()
-        self.ax2.clear()
-        # self.ax3.clear()
-        self.refresh_plot(self.idx_start, self.idx_range)
+        # self.refresh_plot(self.idx_start, self.idx_range)
 
     def on_release(self, event):
         # print('on_release xdata:' + str(event.xdata) + str(type(event.xdata)))
         self.pressed = False
         cur_idx = int(event.xdata)
+        cur_y = event.y
         # print(event.xdata)
-        # print(self.idx_range)
+        # print(event.ydata)
         # print(self.idx_start)
+        # print(self.idx_range)
+        # print(event)
+        # print(event.y)
+        #
+        # 框选处理为放大事件
+        if cur_y - self.y > 30 or cur_y - self.y < -30:
+            if cur_idx > self.idx_range:
+                cur_idx = self.idx_range
+
+            dx = int(event.xdata - self.xpress)
+
+            # 太小就不要放大了
+            if dx > 30:
+                cur_idx = int(self.xpress)
+                self.idx_range = dx
+                self.idx_start = self.idx_start + cur_idx
+                if self.idx_start <= 0:
+                    self.idx_start = 0
+                if self.idx_start >= len(self.data) - 100:
+                    self.idx_start = len(self.data) - 100
+
+                print(self.idx_start)
+                print(self.idx_range)
+                self.refresh_texts(self.data.iloc[self.idx_start])
+                self.refresh_plot(self.idx_start, self.idx_range)
+            return
 
         if cur_idx > self.idx_range:
-            cur_idx = self.idx_range
+            cur_idx = self.idx_range-1
 
         dx = int(event.xdata - self.xpress)
         self.idx_start -= dx
@@ -402,7 +448,12 @@ class InterCandle:
         if self.idx_start >= len(self.data) - 100:
             self.idx_start = len(self.data) - 100
 
-        self.refresh_texts(self.data.iloc[self.idx_start + cur_idx])
+        # 判断是点击还是平移
+        if dx > 2 or dx < -2:
+            self.refresh_texts(self.data.iloc[self.idx_start])
+            self.refresh_plot(self.idx_start, self.idx_range)
+        else:
+            self.refresh_texts(self.data.iloc[self.idx_start + cur_idx])
 
     def on_motion(self, event):
 
@@ -419,24 +470,21 @@ class InterCandle:
             return
         if not event.inaxes == self.ax1:
             return
-        print('on_motion xdata:' + str(event.xdata) + str(type(event.xdata)))
+        # print('on_motion xdata:' + str(event.xdata) + str(type(event.xdata)))
         # print('on_motion xpress:' + str(self.xpress) + str(type(self.xpress)))
-        dx = int(event.xdata - self.xpress)
-        new_start = self.idx_start - dx
-        # 设定平移的左右界限，如果平移后超出界限，则不再平移
-        if new_start <= 0:
-            new_start = 0
-        if new_start >= len(self.data) - 100:
-            new_start = len(self.data) - 100
-        self.ax1.clear()
-        self.ax2.clear()
-        # self.ax3.clear()
-
-        # print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
-        # print('on_motion new_start:' + str(new_start))
-
-        self.refresh_texts(self.data.iloc[new_start])
-        self.refresh_plot(new_start, self.idx_range)
+        # dx = int(event.xdata - self.xpress)
+        # new_start = self.idx_start - dx
+        # # 设定平移的左右界限，如果平移后超出界限，则不再平移
+        # if new_start <= 0:
+        #     new_start = 0
+        # if new_start >= len(self.data) - 100:
+        #     new_start = len(self.data) - 100
+        #
+        # # print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
+        # # print('on_motion new_start:' + str(new_start))
+        #
+        # self.refresh_texts(self.data.iloc[new_start])
+        # self.refresh_plot(new_start, self.idx_range)
 
     def on_scroll(self, event):
         # 仅当鼠标滚轮在axes1范围内滚动时起作用
@@ -459,9 +507,6 @@ class InterCandle:
         if self.idx_range <= 30:
             self.idx_range = 30
             # 更新图表（注意因为多了一个参数idx_range，refresh_plot函数也有所改动）
-        self.ax1.clear()
-        self.ax2.clear()
-        # self.ax3.clear()
         self.refresh_texts(self.data.iloc[self.idx_start])
         self.refresh_plot(self.idx_start, self.idx_range)
 
@@ -480,9 +525,7 @@ class InterCandle:
         elif event.key == 'right':
             if self.idx_start < data_length - self.idx_range:
                 self.idx_start = self.idx_start + self.idx_range // 2
-        self.ax1.clear()
-        self.ax2.clear()
-        # self.ax3.clear()
+
         self.refresh_texts(self.data.iloc[self.idx_start])
         self.refresh_plot(self.idx_start, self.idx_range)
 
@@ -731,9 +774,6 @@ class InterCandle:
             else:
                 self.indicator = 'macd'
 
-        self.ax1.clear()
-        self.ax2.clear()
-        self.ax3.clear()
         self.refresh_plot(self.idx_start, self.idx_range)
 
     def on_release(self, event):
@@ -776,9 +816,6 @@ class InterCandle:
             new_start = 0
         if new_start >= len(self.data) - 100:
             new_start = len(self.data) - 100
-        self.ax1.clear()
-        self.ax2.clear()
-        self.ax3.clear()
 
         # print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
         # print('on_motion new_start:' + str(new_start))
@@ -807,9 +844,6 @@ class InterCandle:
         if self.idx_range <= 30:
             self.idx_range = 30
             # 更新图表（注意因为多了一个参数idx_range，refresh_plot函数也有所改动）
-        self.ax1.clear()
-        self.ax2.clear()
-        self.ax3.clear()
         self.refresh_texts(self.data.iloc[self.idx_start])
         self.refresh_plot(self.idx_start, self.idx_range)
 
@@ -835,9 +869,6 @@ class InterCandle:
         elif event.key == 'right':
             if self.idx_start < data_length - self.idx_range:
                 self.idx_start = self.idx_start + self.idx_range // 2
-        self.ax1.clear()
-        self.ax2.clear()
-        self.ax3.clear()
         self.refresh_texts(self.data.iloc[self.idx_start])
         self.refresh_plot(self.idx_start, self.idx_range)
 
