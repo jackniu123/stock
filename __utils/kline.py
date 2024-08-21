@@ -326,15 +326,11 @@ class InterCandle:
 
         # print(plot_data)
         # 绘制图表
-        candle_type = 'candle'
-        if len(plot_data) > 500:
-            candle_type = 'line'
-
         mpf.plot(plot_data,
                  ax=self.ax1,
                  volume=self.ax2,
                  addplot=ap,
-                 type=candle_type,
+                 type='candle',
                  style=self.style,
                  datetime_format='%Y-%m-%d',
                  xrotation=0)
@@ -407,6 +403,8 @@ class InterCandle:
         # print('on_release xdata:' + str(event.xdata) + str(type(event.xdata)))
         self.pressed = False
         cur_idx = int(event.xdata)
+        if cur_idx > self.idx_range:
+            cur_idx = self.idx_range - 1
         cur_y = event.y
         # print(event.xdata)
         # print(event.ydata)
@@ -415,120 +413,61 @@ class InterCandle:
         # print(event)
         # print(event.y)
         #
+        dx = int(event.xdata - self.xpress)
+        ax_temp = event.inaxes
+        x_min, x_max = ax_temp.get_xlim()
+
         # 框选处理为放大事件
         if cur_y - self.y > 30 or cur_y - self.y < -30:
-            if cur_idx > self.idx_range:
-                cur_idx = self.idx_range
-
-            dx = int(event.xdata - self.xpress)
-
             # 太小就不要放大了
             if dx > 30:
-                cur_idx = int(self.xpress)
-                self.idx_range = dx
-                self.idx_start = self.idx_start + cur_idx
-                if self.idx_start <= 0:
-                    self.idx_start = 0
-                if self.idx_start >= len(self.data) - 100:
-                    self.idx_start = len(self.data) - 100
-
-                print(self.idx_start)
-                print(self.idx_range)
-                self.refresh_texts(self.data.iloc[self.idx_start])
-                self.refresh_plot(self.idx_start, self.idx_range)
+                ax_temp.set(xlim=(int(self.xpress), cur_idx))
+                self.refresh_texts(self.data.iloc[int(self.xpress)])
+                self.fig.canvas.draw_idle()  # 绘图动作实时反映在图像上
             return
-
-        if cur_idx > self.idx_range:
-            cur_idx = self.idx_range-1
-
-        dx = int(event.xdata - self.xpress)
-        self.idx_start -= dx
-        if self.idx_start <= 0:
-            self.idx_start = 0
-        if self.idx_start >= len(self.data) - 100:
-            self.idx_start = len(self.data) - 100
-
-        # 判断是点击还是平移
-        if dx > 2 or dx < -2:
-            self.refresh_texts(self.data.iloc[self.idx_start])
-            self.refresh_plot(self.idx_start, self.idx_range)
+        # 处理为左右移动图像的事件
         else:
-            self.refresh_texts(self.data.iloc[self.idx_start + cur_idx])
+            ax_temp.set(xlim=(x_min - dx, x_max - dx))
+            self.refresh_texts(self.data.iloc[cur_idx])
+            self.fig.canvas.draw_idle()  # 绘图动作实时反映在图像上
 
     def on_motion(self, event):
-
-        # x, y = event.xdata, event.ydata
-        # self.ax1.format_coord(x, y)
-        # self.fig.canvas.draw_idle()
-        # self.ax1.text(0.5, 0.8, str((x, y)),
-        #         horizontalalignment='center',
-        #         verticalalignment='center',
-        #         transform=self.ax1.transAxes)
-
-        # print('on_motion event:' + str(event))
         if not self.pressed:
             return
         if not event.inaxes == self.ax1:
             return
-        # print('on_motion xdata:' + str(event.xdata) + str(type(event.xdata)))
-        # print('on_motion xpress:' + str(self.xpress) + str(type(self.xpress)))
-        # dx = int(event.xdata - self.xpress)
-        # new_start = self.idx_start - dx
-        # # 设定平移的左右界限，如果平移后超出界限，则不再平移
-        # if new_start <= 0:
-        #     new_start = 0
-        # if new_start >= len(self.data) - 100:
-        #     new_start = len(self.data) - 100
-        #
-        # # print('on_motion self.idx_start:' + str(self.idx_start) + str(type(self.idx_start)))
-        # # print('on_motion new_start:' + str(new_start))
-        #
-        # self.refresh_texts(self.data.iloc[new_start])
-        # self.refresh_plot(new_start, self.idx_range)
 
     def on_scroll(self, event):
-        # 仅当鼠标滚轮在axes1范围内滚动时起作用
-        scale_factor = 1.0
-        if event.inaxes != self.ax1:
-            return
-        if event.button == 'down':
-            # 缩小20%显示范围
-            scale_factor = 0.8
+        ax_temp = event.inaxes
+        x_min, x_max = ax_temp.get_xlim()
+        scale = (x_max - x_min) / 10
         if event.button == 'up':
-            # 放大20%显示范围
-            scale_factor = 1.2
-        # 设置K线的显示范围大小
-        self.idx_range = int(self.idx_range * scale_factor)
-        # 限定可以显示的K线图的范围，最少不能少于30个交易日，最大不能超过当前位置与
-        # K线数据总长度的差
-        data_length = len(self.data)
-        if self.idx_range >= data_length - self.idx_start:
-            self.idx_range = data_length - self.idx_start
-        if self.idx_range <= 30:
-            self.idx_range = 30
-            # 更新图表（注意因为多了一个参数idx_range，refresh_plot函数也有所改动）
-        self.refresh_texts(self.data.iloc[self.idx_start])
-        self.refresh_plot(self.idx_start, self.idx_range)
+            ax_temp.set(xlim=(x_min + scale, x_max - scale))
+            # print('up')
+        elif event.button == 'down':
+            ax_temp.set(xlim=(x_min - scale, x_max + scale))
+            # print('down')
+        self.fig.canvas.draw_idle()  # 绘图动作实时反映在图像上
+        return
 
     # 键盘按下处理
     def on_key_press(self, event):
-        data_length = len(self.data)
-        if event.key == 'up':  # 向上，看仔细1倍
-            if self.idx_range > 30:
-                self.idx_range = self.idx_range // 2
-        elif event.key == 'down':  # 向下，看多1倍标的
-            if self.idx_range <= data_length - self.idx_start:
-                self.idx_range = self.idx_range * 2
+        ax_temp = event.inaxes
+        x_min, x_max = ax_temp.get_xlim()
+        scale = (x_max - x_min) / 10
+        if event.key == 'up':  # 向上，看仔细1点
+            ax_temp.set(xlim=(x_min + scale, x_max - scale))
+            # print('up')
+        elif event.key == 'down':  # 向下，看多1点标的
+            ax_temp.set(xlim=(x_min - scale, x_max + scale))
+            # print('down')
         elif event.key == 'left':
-            if self.idx_start > self.idx_range:
-                self.idx_start = self.idx_start - self.idx_range // 2
+            ax_temp.set(xlim=(x_min + scale, x_max + scale))
+            # print('left')
         elif event.key == 'right':
-            if self.idx_start < data_length - self.idx_range:
-                self.idx_start = self.idx_start + self.idx_range // 2
-
-        self.refresh_texts(self.data.iloc[self.idx_start])
-        self.refresh_plot(self.idx_start, self.idx_range)
-
+            ax_temp.set(xlim=(x_min - scale, x_max - scale))
+            # print('right')
+        self.fig.canvas.draw_idle()  # 绘图动作实时反映在图像上
 
 def show_trade_history(data=None):
     if data is None:
