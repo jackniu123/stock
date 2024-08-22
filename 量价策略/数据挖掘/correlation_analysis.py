@@ -195,7 +195,111 @@ def get_max_min_by_code(stock_code:str, topN = 3):
     return max_min_list
 
 
+def prepare_flatten_data(field_name="close"):
+    pymysql.install_as_MySQLdb()
+    try:
+        sql_query_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all_' + field_name + '.csv'
+        sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_flatten_' + field_name + '.csv'
+
+        df_daily = pd.DataFrame()
+
+        # 创建数据库连接
+        engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
+        conn = engine.connect()
+        result = conn.execute(text('describe daily'))
+        print('========== describe daily result:==========')
+        print(result.fetchall())
+        print('-------------------')
+
+        result = conn.execute(text('select distinct ts_code from daily'))
+        print('========== select distinct ts_code from daily limit 10000:==========')
+        all_data__ts_codes = result.fetchall()
+        print(all_data__ts_codes)
+        print('--------- end of select distinct ts_code from daily limit 10000:==========')
+
+        if not os.path.exists(sql_query_file_name):
+            print('开始查询数据库：select ts_code, trade_date, ' + field_name + ' from daily')
+            # sql_text = text(f'''select ts_code, trade_date, close from daily where ts_code like \'000______\' and trade_date like \'2023____\' limit 10000000''')
+            sql_text = text(f'''select ts_code, trade_date, {field_name} from daily''')
+            result = conn.execute(sql_text)
+            all_data = result.fetchall()
+            df_daily = pd.DataFrame(list(all_data))
+            df_daily = df_daily[['ts_code', 'trade_date', field_name]]
+            df_daily.to_csv(sql_query_file_name)
+        else:
+            df_daily = pd.read_csv(sql_query_file_name, index_col=0)
+        print('从数据库中查询到的表格为：\n', df_daily)
+
+        df_all = pd.DataFrame(None, columns=['trade_date'])
+        if not os.path.exists(sql_query_flatten_file_name):
+            print('开始拍平数据库查询结果')
+            for ts_code in all_data__ts_codes:
+                tmp_df = df_daily[df_daily['ts_code'] == ts_code[0]]
+                # # 新股还是别分析趋势了
+                # if len(tmp_df) < 200:
+                #     continue
+                tmp_df = tmp_df[['trade_date', field_name]]
+                tmp_df.rename(columns={field_name: str(ts_code[0])}, inplace=True)
+                df_all = pd.merge(df_all, tmp_df, on='trade_date', how='outer')
+                print('\t processing: ', ts_code)
+
+            df_all.set_index('trade_date', inplace=True)
+            # print('未按日期排序前的N个股票报价：\n', df_all)
+            df_all.sort_index(inplace=True)
+
+            df_all.to_csv(sql_query_flatten_file_name)
+        else:
+            df_all = pd.read_csv(sql_query_flatten_file_name, index_col=0)
+
+        print('拍平后的表格为：\n', df_all)
+
+    except Exception as e:
+        print("\033[0;31;40m", e, "\033[0m")
+
+    finally:
+        conn.commit()
+        conn.close()
+
+
+
+import time
+def compare_performance_sql_csv():
+    field_name = 'vol'
+    prepare_flatten_data(field_name=field_name)
+    start_time = time.time()
+
+    sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_flatten_' + field_name + '.csv'
+    df_all = pd.read_csv(sql_query_flatten_file_name, index_col=0)
+    print('拍平后的表格为：\n', df_all)
+
+    end_time = time.time()
+    print('从csv中读取' + field_name + '字段，耗时 {:.2f}秒'.format(end_time-start_time))
+
+    start_time = time.time()
+
+    try:
+        # 创建数据库连接
+        engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
+        conn = engine.connect()
+        print('========== select ts_code, trade_date, ' + field_name + ' from daily==========')
+        result = conn.execute(text('select ts_code, trade_date, ' + field_name + ' from daily'))
+        all_data__close = result.fetchall()
+        print(all_data__close)
+        print('--------- end of select ts_code, trade_date, ' + field_name + ' from daily==========')
+    except Exception as e:
+        print("\033[0;31;40m", e, "\033[0m")
+
+    finally:
+        conn.commit()
+        conn.close()
+
+    end_time = time.time()
+    print('从db中读取' + field_name + '字段，耗时 {:.2f}秒'.format(end_time - start_time))
+
+
 if __name__ == '__main__':
+    compare_performance_sql_csv()
+    exit(0)
     pd.options.display.max_columns = 10
     pd.set_option('display.width', 200)
     print('correlation_analysis')
