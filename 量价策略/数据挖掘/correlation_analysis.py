@@ -266,6 +266,16 @@ import time
 def compare_performance_sql_csv():
     field_name = 'vol'
     prepare_flatten_data(field_name=field_name)
+
+    start_time = time.time()
+
+    sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all_' + field_name + '.csv'
+    df_all = pd.read_csv(sql_query_flatten_file_name, index_col=0)
+    print('拍平前的表格为：\n', df_all)
+
+    end_time = time.time()
+    print('从拍平前csv中读取' + field_name + '字段，耗时 {:.2f}秒'.format(end_time - start_time))
+
     start_time = time.time()
 
     sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_flatten_' + field_name + '.csv'
@@ -273,7 +283,7 @@ def compare_performance_sql_csv():
     print('拍平后的表格为：\n', df_all)
 
     end_time = time.time()
-    print('从csv中读取' + field_name + '字段，耗时 {:.2f}秒'.format(end_time-start_time))
+    print('从拍平后csv中读取' + field_name + '字段，耗时 {:.2f}秒'.format(end_time-start_time))
 
     start_time = time.time()
 
@@ -282,7 +292,11 @@ def compare_performance_sql_csv():
         engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
         conn = engine.connect()
         print('========== select ts_code, trade_date, ' + field_name + ' from daily==========')
-        result = conn.execute(text('select ts_code, trade_date, ' + field_name + ' from daily'))
+        # result = conn.execute(text('select ts_code, trade_date, ' + field_name + ' from daily where ts_code=\'600597.SH\''))
+        result = conn.execute(
+            text('select ts_code, trade_date, ' + field_name + ' from daily'))
+        # result = conn.execute(
+        #     text('select * from daily'))
         all_data__close = result.fetchall()
         print(all_data__close)
         print('--------- end of select ts_code, trade_date, ' + field_name + ' from daily==========')
