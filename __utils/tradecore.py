@@ -1,11 +1,14 @@
 import datetime
 import os
+import time
 import pandas as pd
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, text
 import pymysql
 
 from __utils import messagebox
 
+# g_debug_mode = True
+g_debug_mode = False
 
 # 无法成交判断：
 # 1，volume过低
@@ -14,10 +17,12 @@ from __utils import messagebox
 class Portforlio:
     s_stock_code = ""
     s_current_shares = 0
+    s_average_cost = 0
 
-    def __init__(self, stock_code, current_shares):
+    def __init__(self, stock_code, current_shares, average_cost):
         self.s_stock_code = stock_code
         self.s_current_shares = current_shares
+        self.s_average_cost = average_cost
 
 
 class TradeHistory:
@@ -26,16 +31,27 @@ class TradeHistory:
     s_price = 0
     s_trade_time = 0
     s_buy_or_sell = False
+    s_profit = 0
+    s_profit_change = 0
+    # 这是为了计算最终成绩，对最后的残留持仓做清空操作
+    s_last_clear = False
 
-    def __init__(self, stock_code, shares_change, price, trade_time, buy_or_sell):
+    def __init__(self, stock_code, shares_change, price, trade_time, buy_or_sell, last_clear=False):
         self.s_stock_code = stock_code
         self.s_share_change = shares_change
         self.s_price = price
         self.s_trade_time = trade_time
         self.s_buy_or_sell = buy_or_sell
+        self.s_last_clear = last_clear
 
     def dump(self):
-        print(f"""stock_code:{self.s_stock_code}, shares_change:{self.s_share_change}, price:{self.s_price}, trade_time:{self.s_trade_time}, buy_or_sell:{self.s_buy_or_sell}""")
+        result_string = f"""stock_code:{self.s_stock_code}, shares_change:{self.s_share_change}, price:{self.s_price}, trade_time:{self.s_trade_time}, buy_or_sell:{self.s_buy_or_sell}"""
+        if self.s_last_clear:
+            result_string += f""" [this is last clear]"""
+        if self.s_buy_or_sell == 'sell':
+            result_string += f"""\n             ===profit:{int(self.s_profit)}, profit_change:""" + ('{:.2%}'.format(self.s_profit_change)) + "==="
+        print(result_string)
+
 
 class TradeCore:
 
@@ -84,7 +100,6 @@ class TradeCore:
             stock_list = ','.join("'{0}'".format(x) for x in self.g_stock_codes)
             sql_text = text(f'''select * from daily where ts_code in ({stock_list}) ''')
 
-            import time
             start_time = time.time()
             print(f'开始查询数据库：:{sql_text}')
             result = conn.execute(sql_text)
@@ -107,6 +122,8 @@ class TradeCore:
 
     def trade_by_daily(self):
 
+        start_time = time.time()
+
         while self.g_cur_day < self.g_end_day:
             # print(f'===begin processing: {self.g_cur_day} {self.g_cur_day.strftime("%Y%m%d")}===')
             # 跳过非交易日
@@ -118,6 +135,9 @@ class TradeCore:
             self.g_trade_func(self, self.g_df_daily[self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")])
             # print(f'===end processing: {self.g_cur_day} ===')
             self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
+
+        end_time = time.time()
+        print('trade_by_daily执行完的耗时 {:.2f}秒'.format(end_time - start_time))
 
         return
 
@@ -135,11 +155,12 @@ class TradeCore:
         has_add = False
         for cur_portforlio in self.g_portforlio:
             if cur_portforlio.s_stock_code == stock_code:
+                cur_portforlio.s_average_cost = ((cur_portforlio.s_average_cost * cur_portforlio.s_current_shares) + (price * shares)) / (cur_portforlio.s_current_shares + shares)
                 cur_portforlio.s_current_shares += shares
                 has_add = True
 
         if not has_add:
-            sharehold = Portforlio(stock_code, shares)
+            sharehold = Portforlio(stock_code, shares, price)
             self.g_portforlio.append(sharehold)
 
         trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day, "buy")
@@ -147,17 +168,21 @@ class TradeCore:
 
         return
 
-    def sell(self, stock_code, price, shares=-1):
+    def sell(self, stock_code, price, shares=-1, last_clear = False):
         # print(f'TradeCore---sell par: stock_code = {stock_code}, price = {price}, cur_day = {self.g_cur_day}')
         for cur_portforlio in self.g_portforlio:
             if cur_portforlio.s_stock_code == stock_code:
                 # 代表清仓处理
                 if shares == -1:
+                    # 卖出不改成本。
+                    # cur_portforlio.s_average_cost = 0
                     cur_portforlio.s_current_shares = 0
                 else:
+                    # 卖出不改成本。
+                    # cur_portforlio.s_average_cost = 0
                     cur_portforlio.s_current_shares -= shares
 
-        trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day, "sell")
+        trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day, "sell", last_clear)
         self.g_trade_history.append(trade_history)
 
         return
@@ -167,9 +192,52 @@ class TradeCore:
 
     def show_result(self):
         # 策略收益曲线
+
+        # 清空持仓
+        for portforlio in self.g_portforlio:
+            if portforlio.s_current_shares > 0:
+                current_price = self.g_df_daily.loc[
+                    (self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")) & (
+                            self.g_df_daily['ts_code'] == portforlio.s_stock_code)]['close'].tail(1).values[0]
+                # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
+                self.sell(portforlio.s_stock_code, current_price, -1, last_clear=True)
+
         # 下单历史
-        for cur_trade_history in self.g_trade_history:
-            cur_trade_history.dump()
+        # 计算卖出时的每笔盈利和盈利率
+        for stock_code in self.g_stock_codes:
+            print(f'''==================================={stock_code}==================================''')
+
+            last_buy = None
+            total_profit = 0
+            total_profit_change = 1
+            max_loss = 0
+            win_count = 0
+            loss_count = 0
+            win_percent = 0
+            for cur_trade_history in self.g_trade_history:
+                if cur_trade_history.s_stock_code == stock_code:
+                    if cur_trade_history.s_buy_or_sell == 'buy':
+                        last_buy = cur_trade_history
+                    if cur_trade_history.s_buy_or_sell == 'sell':
+                        # TODO: 如果并非每次都清仓，那么需要计算平均持仓成本
+                        if cur_trade_history.s_share_change == -1:
+                            cur_trade_history.s_profit = (cur_trade_history.s_price - last_buy.s_price) * last_buy.s_share_change
+                            total_profit += cur_trade_history.s_profit
+                            cur_trade_history.s_profit_change = cur_trade_history.s_profit / (last_buy.s_price * last_buy.s_share_change)
+                            total_profit_change *= 1+cur_trade_history.s_profit_change
+                            if cur_trade_history.s_profit_change > 0:
+                                win_count += 1
+                            else:
+                                loss_count += 1
+                            max_loss = max_loss if max_loss < cur_trade_history.s_profit_change else cur_trade_history.s_profit_change
+            win_percent = win_count / (win_count + loss_count)
+
+            for cur_trade_history in self.g_trade_history:
+                if cur_trade_history.s_stock_code == stock_code:
+                    cur_trade_history.dump()
+
+            print("="*10+f'''total_profit_change:{(total_profit_change-1)*100:.2f}%, win_percent:{(win_percent*100):.2f}%, max_loss:{max_loss*100:.2f}%, trade_count:{win_count+loss_count}, total_profit:{total_profit} '''+'='*10)
+
         return
 
 #
@@ -183,8 +251,8 @@ class TradeCore:
 #     return
 
 def init_trade_strategy_low_volume(trade_core_ins=None):
-    # trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
-    trade_core_ins.g_stock_codes = ["000020.SZ"]
+    trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
+    # trade_core_ins.g_stock_codes = ["000020.SZ"]
 
     trade_core_ins.g_sum_of_compare_volume = 0
     trade_core_ins.g_cur_count_of_compare_volume = 0
@@ -220,6 +288,8 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 if __name__ == '__main__':
     trade_core = TradeCore()
-    trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume, begin_day='20050104', end_day='20240820', cash=1000000)
+    end_day = '20080220' if g_debug_mode else '20240820'
+    trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
+                          begin_day='20050104', end_day=end_day, cash=1000000)
     trade_core.trade_by_daily()
     trade_core.show_result()
