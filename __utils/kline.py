@@ -245,7 +245,7 @@ class InterCandle:
         # self.ax3 = fig.add_axes([0.08, 0.05, 0.88, 0.10], sharex=self.ax1)
         # self.ax3.set_ylabel('macd')
         # 初始化figure对象，在figure上预先放置文本并设置格式，文本内容根据需要显示的数据实时更新
-        self.t1 = fig.text(0.50, 0.94, '513100.SH - 纳斯达克指数ETF基金', **title_font)
+        self.t1 = fig.text(0.50, 0.94, data['ts_code'].values[0]+"   "+get_name_by_code(data['ts_code'].values[0]), **title_font)
         self.t2 = fig.text(0.12, 0.90, '开/收: ', **normal_label_font)
         self.t3 = fig.text(0.14, 0.89, f'', **large_red_font)
         self.t4 = fig.text(0.14, 0.86, f'', **small_red_font)
