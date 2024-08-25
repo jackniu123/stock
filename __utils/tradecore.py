@@ -87,6 +87,7 @@ class TradeCore:
 
     def init_trade(self, init_func, trade_func, begin_day, end_day, cash=1000000):
         if not self.g_is_trade_inited:
+            print(f"""{"="*10}trade_core init_trade: init_trade:{init_func.__name__}, trade_func:{trade_func.__name__}, begin_day:{begin_day}, end_day:{end_day}{"="*10}""")
             self.g_trade_func = trade_func
             self.g_begin_day = datetime.datetime(year=int(begin_day[0:4]), month=int(begin_day[4:6]),
                                                  day=int(begin_day[6:8])).date()
@@ -125,12 +126,18 @@ class TradeCore:
             # 创建数据库连接
             engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
             conn = engine.connect()
-            # sql_text = text(
-            #     f'''select ts_code, trade_date, open, close, high from daily where trade_date=\'{self.g_cur_day.strftime("%Y%m%d")}\' and ts_code=\'{stock_list}\' ''')
-            # sql_text = text(f'''select * from daily''')
-            # stock_list = ','.join(self.g_stock_codes)
-            stock_list = ','.join("'{0}'".format(x) for x in self.g_stock_codes)
-            sql_text = text(f'''select * from daily where ts_code in ({stock_list}) ''')
+            sql_text = ""
+            if self.g_stock_codes == "all" or len(self.g_stock_codes) == 0:
+                sql_text = text(f'''select distinct ts_code from daily ''')
+                result = conn.execute(sql_text).fetchall()
+                self.g_stock_codes = []
+                for element in result:
+                    self.g_stock_codes.append(element[0])
+                print(self.g_stock_codes)
+                sql_text = text(f'''select ts_code, trade_date, open, close, high, vol from daily where trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
+            else:
+                stock_list = ','.join("'{0}'".format(x) for x in self.g_stock_codes)
+                sql_text = text(f'''select * from daily where ts_code in ({stock_list}) and trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
 
             start_time = time.time()
             print(f'开始查询数据库：:{sql_text}')
@@ -155,7 +162,7 @@ class TradeCore:
     def trade_by_daily(self):
 
         start_time = time.time()
-
+        last_print_time = time.time()
         while self.g_cur_day < self.g_end_day:
             # print(f'===begin processing: {self.g_cur_day} {self.g_cur_day.strftime("%Y%m%d")}===')
             # 跳过非交易日
@@ -165,8 +172,10 @@ class TradeCore:
             # else:
             #     print(self.g_df_daily)
             self.g_trade_func(self, self.g_df_daily[self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")])
-            # print(f'===end processing: {self.g_cur_day} ===')
             self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
+            if time.time() - last_print_time > 10:
+                print(f'=== progress: {(self.g_cur_day-self.g_begin_day)/(self.g_end_day-self.g_begin_day) * 100:.2f}% --- end processing: {self.g_cur_day}, days processed: {(self.g_cur_day-self.g_begin_day).days}天, time passed:{time.time() - start_time:.2f} 秒   ===')
+                last_print_time = time.time()
 
         end_time = time.time()
         print('trade_by_daily执行完的耗时 {:.2f}秒'.format(end_time - start_time))
@@ -460,8 +469,8 @@ class TradeCore:
 #     return
 
 def init_trade_strategy_low_volume(trade_core_ins=None):
-    trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
-    # trade_core_ins.g_stock_codes = ["000020.SZ"]
+    # trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
+    trade_core_ins.g_stock_codes = "all"
 
     trade_core_ins.g_sum_of_compare_volume = 0
     trade_core_ins.g_cur_count_of_compare_volume = 0
@@ -498,7 +507,7 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 if __name__ == '__main__':
     trade_core = TradeCore()
-    end_day = '20081220' if g_debug_mode else '20240820'
+    end_day = '20061220' if g_debug_mode else '20240820'
     trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
                           begin_day='20050104', end_day=end_day, cash=1000000)
     trade_core.trade_by_daily()
