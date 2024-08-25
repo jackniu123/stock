@@ -9,9 +9,15 @@ import pymysql
 
 from __utils import messagebox, kline
 import inspect
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+import json
 
 g_debug_mode = True
 # g_debug_mode = False
+g_cur_abs_path = ""
+
 
 # 无法成交判断：
 # 1，volume过低
@@ -52,21 +58,20 @@ class TradeHistory:
         if self.s_last_clear:
             result_string += f""" [this is last clear]"""
         if self.s_buy_or_sell == 'sell':
-            result_string += f"""\n             ===profit:{int(self.s_profit)}, profit_change:{self.s_profit_change*100:.2f}% ==="""
+            result_string += f"""\n             ===profit:{int(self.s_profit)}, profit_change:{self.s_profit_change * 100:.2f}% ==="""
         print(result_string)
 
     def get_df(self):
-        tmp_df = pd.DataFrame({'stock_code':self.s_stock_code,
-                                'share_change':self.s_share_change,
-                                'price':self.s_price,
-                                'trade_time':self.s_trade_time,
-                                'buy_or_sell':self.s_buy_or_sell,
-                                's_last_clear':self.s_last_clear}, index=[0])
+        tmp_df = pd.DataFrame({'stock_code': self.s_stock_code,
+                               'share_change': self.s_share_change,
+                               'price': self.s_price,
+                               'trade_time': self.s_trade_time,
+                               'buy_or_sell': self.s_buy_or_sell,
+                               's_last_clear': self.s_last_clear}, index=[0])
         return tmp_df
 
 
 class TradeCore:
-
     g_is_trade_inited = False
     g_cur_day = datetime.datetime(year=2005, month=1, day=1).date()
     g_begin_day = datetime.datetime(year=2005, month=1, day=1).date()
@@ -78,22 +83,26 @@ class TradeCore:
     g_filter_func = None
     g_stock_codes = ['000001.SZ']
     g_path = ""
+    g_root_path = __file__.replace('.', '_')
 
     def init_trade(self, init_func, trade_func, begin_day, end_day, cash=1000000):
         if not self.g_is_trade_inited:
             self.g_trade_func = trade_func
-            self.g_begin_day = datetime.datetime(year=int(begin_day[0:4]), month=int(begin_day[4:6]), day=int(begin_day[6:8])).date()
-            self.g_end_day = datetime.datetime(year=int(end_day[0:4]), month=int(end_day[4:6]), day=int(end_day[6:8])).date()
+            self.g_begin_day = datetime.datetime(year=int(begin_day[0:4]), month=int(begin_day[4:6]),
+                                                 day=int(begin_day[6:8])).date()
+            self.g_end_day = datetime.datetime(year=int(end_day[0:4]), month=int(end_day[4:6]),
+                                               day=int(end_day[6:8])).date()
             self.g_cur_day = self.g_begin_day
             init_func(self)
 
             # 记录下来所有参数
-            self.g_path = __file__.replace('.', '_') + "\\" + trade_func.__name__ + "\\" + str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+            self.g_path = __file__.replace('.', '_') + "\\" + trade_func.__name__ + "\\" + str(
+                datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
             os.makedirs(self.g_path)
             with open(self.g_path + "\\" + 'config.conf', 'a+') as f:
-                attributes = inspect.getmembers(self, lambda a:not inspect.isroutine(a))
+                attributes = inspect.getmembers(self, lambda a: not inspect.isroutine(a))
                 for attribute in attributes:
-                    f.write(str(attribute)+"\r\n")
+                    f.write(str(attribute) + "\r\n")
                 f.close()
 
             self.init_df_daily()
@@ -150,12 +159,12 @@ class TradeCore:
         while self.g_cur_day < self.g_end_day:
             # print(f'===begin processing: {self.g_cur_day} {self.g_cur_day.strftime("%Y%m%d")}===')
             # 跳过非交易日
-            if len(self.g_df_daily[self.g_df_daily['trade_date']==self.g_cur_day.strftime("%Y%m%d")]) < 1:
+            if len(self.g_df_daily[self.g_df_daily['trade_date'] == self.g_cur_day.strftime("%Y%m%d")]) < 1:
                 self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
                 continue
             # else:
             #     print(self.g_df_daily)
-            self.g_trade_func(self, self.g_df_daily[self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")])
+            self.g_trade_func(self, self.g_df_daily[self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")])
             # print(f'===end processing: {self.g_cur_day} ===')
             self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
 
@@ -178,7 +187,8 @@ class TradeCore:
         has_add = False
         for cur_portforlio in self.g_portforlio:
             if cur_portforlio.s_stock_code == stock_code:
-                cur_portforlio.s_average_cost = ((cur_portforlio.s_average_cost * cur_portforlio.s_current_shares) + (price * shares)) / (cur_portforlio.s_current_shares + shares)
+                cur_portforlio.s_average_cost = ((cur_portforlio.s_average_cost * cur_portforlio.s_current_shares) + (
+                        price * shares)) / (cur_portforlio.s_current_shares + shares)
                 cur_portforlio.s_current_shares += shares
                 has_add = True
 
@@ -191,7 +201,7 @@ class TradeCore:
 
         return
 
-    def sell(self, stock_code, price, shares=-1, last_clear = False):
+    def sell(self, stock_code, price, shares=-1, last_clear=False):
         # print(f'TradeCore---sell par: stock_code = {stock_code}, price = {price}, cur_day = {self.g_cur_day}')
         for cur_portforlio in self.g_portforlio:
             if cur_portforlio.s_stock_code == stock_code:
@@ -245,10 +255,12 @@ class TradeCore:
                     if cur_trade_history.s_buy_or_sell == 'sell':
                         # TODO: 如果并非每次都清仓，那么需要计算平均持仓成本
                         if cur_trade_history.s_share_change == -1:
-                            cur_trade_history.s_profit = (cur_trade_history.s_price - last_buy.s_price) * last_buy.s_share_change
+                            cur_trade_history.s_profit = (
+                                                                 cur_trade_history.s_price - last_buy.s_price) * last_buy.s_share_change
                             total_profit += cur_trade_history.s_profit
-                            cur_trade_history.s_profit_change = cur_trade_history.s_profit / (last_buy.s_price * last_buy.s_share_change)
-                            total_profit_change *= 1+cur_trade_history.s_profit_change
+                            cur_trade_history.s_profit_change = cur_trade_history.s_profit / (
+                                    last_buy.s_price * last_buy.s_share_change)
+                            total_profit_change *= 1 + cur_trade_history.s_profit_change
                             if cur_trade_history.s_profit_change > 0:
                                 win_count += 1
                             else:
@@ -266,9 +278,13 @@ class TradeCore:
             detail_filename = self.g_path + "\\" + "trade_history.csv"
             df_trade_history.to_csv(detail_filename, mode='a', header=with_header, index=False)
 
-            print("="*10+f'''total_profit_change:{(total_profit_change-1)*100:.2f}%, win_percent:{(win_percent*100):.2f}%, max_loss:{max_loss*100:.2f}%, trade_count:{win_count+loss_count}, total_profit:{int(total_profit)} '''+'='*10)
+            print(
+                "=" * 10 + f'''total_profit_change:{(total_profit_change - 1) * 100:.2f}%, win_percent:{(win_percent * 100):.2f}%, max_loss:{max_loss * 100:.2f}%, trade_count:{win_count + loss_count}, total_profit:{int(total_profit)} ''' + '=' * 10)
             statics_filename = self.g_path + "\\" + "statics.csv"
-            df_trade_statics = pd.DataFrame({'total_profit_change':(total_profit_change-1)*100, 'win_percent':(win_percent*100), 'max_loss':max_loss*100, 'trade_count':win_count+loss_count, 'total_profit':int(total_profit)}, index=[0])
+            df_trade_statics = pd.DataFrame(
+                {'ts_code': stock_code, 'total_profit_change': (total_profit_change - 1) * 100,
+                 'win_percent': (win_percent * 100), 'max_loss': max_loss * 100, 'trade_count': win_count + loss_count,
+                 'total_profit': int(total_profit)}, index=[0])
             df_trade_statics.to_csv(statics_filename, mode='a', header=with_header, index=False)
             with_header = False
 
@@ -278,31 +294,158 @@ class TradeCore:
             # print(df_cur_stock[['ts_code', 'trade_date', 'close']])
             begin_price = df_cur_stock['close'].values[0]
             end_price = df_cur_stock['close'].values[-1]
-            benchmark_profit_change = (end_price-begin_price)/begin_price*100
-            relative_profit_change = (total_profit_change-1)*100 - benchmark_profit_change
-            print(f'''benchmark_profit_change is {benchmark_profit_change:.2f}% relative_profit_change is {relative_profit_change:.2f}%''')
+            benchmark_profit_change = (end_price - begin_price) / begin_price * 100
+            relative_profit_change = (total_profit_change - 1) * 100 - benchmark_profit_change
+            print(
+                f'''benchmark_profit_change is {benchmark_profit_change:.2f}% relative_profit_change is {relative_profit_change:.2f}%''')
             print(f'''*******************************{stock_code}*******************************''')
-
-
-            if False:
-                # 显示分析图
-                daily_by_code = kline.get_daily_by_code(stock_code=stock_code, start_date=self.g_begin_day.strftime("%Y%m%d"), end_date=self.g_end_day.strftime("%Y%m%d"))
-                print(daily_by_code)
-                daily_will_show = daily_by_code.copy()
-                daily_will_show['buy_price'] = np.nan
-                daily_will_show['sell_price'] = np.nan
-                for cur_trade_history in self.g_trade_history:
-                    if cur_trade_history.s_buy_or_sell == "buy":
-                        daily_will_show.loc[daily_will_show['trade_date'] == str(cur_trade_history.s_trade_time.strftime("%Y%m%d")), ["buy_price"]] = cur_trade_history.s_price
-                    if cur_trade_history.s_buy_or_sell == "sell":
-                        daily_will_show.loc[daily_will_show['trade_date'] == str(cur_trade_history.s_trade_time.strftime("%Y%m%d")), ['sell_price']] = cur_trade_history.s_price
-
-                print(daily_will_show)
-                kline.show_trade_history(daily_will_show)
 
         return
 
-    def generate_result(self):
+    def show_result(self, trade_func=None):
+        result_path = self.g_root_path + "\\" + trade_func.__name__
+
+        top = tk.Tk()
+        top.geometry("1700x1000")
+        lbl = tk.Label(top, text=trade_func.__name__ + "的分析结果...")
+        listbox = tk.Listbox(top, width=900)
+
+        # create treeview
+        treeview_statics = ttk.Treeview(top, show="headings", columns=(
+            "ts_code", "total_profit_change", "win_percent", "max_loss", "trade_count", "total_profit"))
+
+        # set column headings
+        treeview_statics.heading("#0", text="ID")
+        treeview_statics.heading("ts_code", text="ts_code")
+        treeview_statics.heading("total_profit_change", text="total_profit_change")
+        treeview_statics.heading("win_percent", text="win_percent")
+        treeview_statics.heading("max_loss", text="max_loss")
+        treeview_statics.heading("trade_count", text="trade_count")
+        treeview_statics.heading("total_profit", text="total_profit")
+
+        trv_trade_history = ttk.Treeview(top, show="headings", columns=(
+            "ts_code", "share_change", "price", "trade_time", "buy_or_sell", "s_last_clear"))
+
+        # set column headings
+        trv_trade_history.heading("#0", text="ID")
+        trv_trade_history.heading("ts_code", text="ts_code")
+        trv_trade_history.heading("share_change", text="share_change")
+        trv_trade_history.heading("price", text="price")
+        trv_trade_history.heading("trade_time", text="trade_time")
+        trv_trade_history.heading("buy_or_sell", text="buy_or_sell")
+        trv_trade_history.heading("s_last_clear", text="s_last_clear")
+
+        def show_selected_item(event):
+            selected_item = listbox.get(listbox.curselection())
+            # messagebox.showinfo("Selected Item", selected_item)
+            global g_cur_abs_path
+            g_cur_abs_path = selected_item
+            print(selected_item + "\\" + "statics.csv  content:")
+            statics_data = pd.read_csv(selected_item + "\\" + "statics.csv")
+            print(statics_data)
+            items = treeview_statics.get_children()
+            for item_trv in items:
+                treeview_statics.delete(item_trv)
+            for key, data in statics_data.iterrows():
+                print(data)
+                treeview_statics.insert("", tk.END, values=list(data))
+
+        last_folder_path = []
+        for dir_name in os.listdir(result_path):
+            dir_path = os.path.join(result_path, dir_name)
+            if os.path.isfile(dir_path):
+                print("file:", dir_path)
+            else:
+                print("folder", dir_path)
+                last_folder_path.append(dir_path)
+        for item in last_folder_path:
+            listbox.insert(tk.END, item)
+        listbox.bind("<Double-Button-1>", show_selected_item)
+        listbox.bind("<ButtonRelease-1>", show_selected_item)
+
+        # https://blog.csdn.net/sinat_27382047/article/details/80161637
+        def treeview_statics_show_selected_item(event):
+            global g_cur_abs_path
+            for selected_item_id in treeview_statics.selection():
+                print("treeview_statics_show_selected_item selected_item:", treeview_statics.item(selected_item_id))
+                stock_code = treeview_statics.item(selected_item_id)['values'][0]
+                df_trade_history = pd.read_csv(g_cur_abs_path + "\\" + "trade_history.csv")
+                # print(df_trade_history)
+
+                items = trv_trade_history.get_children()
+                for item_trv in items:
+                    trv_trade_history.delete(item_trv)
+                for key, data in df_trade_history.iterrows():
+                    if data['stock_code'] == stock_code:
+                        trv_trade_history.insert("", tk.END, values=list(data))
+
+                if True:
+                    begin_day = None
+                    end_day = None
+                    # g_cur_abs_path = "D:\\不要删除牛爸爸的程序\\__utils\\tradecore_py\\handle_data_trade_strategy_low_volume\\20240825_114911\\"
+                    for line in open(g_cur_abs_path + "\\" + "config.conf", 'r'):
+                        if line.find("g_begin_day") > 0 and line.find(", datetime") > 0:
+                            print('content:', line)
+                            start_index = line.find('20')
+                            line = line[start_index:-3]
+                            spllit_strings = line.split(",")
+                            print(spllit_strings)
+                            year = spllit_strings[0]
+                            month = spllit_strings[1]
+                            day = spllit_strings[2]
+                            print(year, month, day)
+                            begin_day = datetime.datetime(year=int(year), month=int(month), day=int(day)).strftime(
+                                "%Y%m%d")
+                            print(begin_day)
+                        elif line.find("g_end_day") > 0 and line.find(", datetime") > 0:
+                            print('content:', line)
+                            start_index = line.find('20')
+                            line = line[start_index:-3]
+                            spllit_strings = line.split(",")
+                            print(spllit_strings)
+                            year = spllit_strings[0]
+                            month = spllit_strings[1]
+                            day = spllit_strings[2]
+                            print(year, month, day)
+                            end_day = datetime.datetime(year=int(year), month=int(month), day=int(day)).strftime(
+                                "%Y%m%d")
+                            print(end_day)
+
+                    df_trade_history = df_trade_history[df_trade_history['stock_code'] == stock_code]
+                    print(df_trade_history)
+
+                    print("will show kline:")
+                    print(stock_code)
+                    print(begin_day)
+                    print(end_day)
+                    # 显示分析图
+                    daily_by_code = kline.get_daily_by_code(stock_code=stock_code, start_date=begin_day, end_date=end_day)
+                    print(daily_by_code)
+                    daily_will_show = daily_by_code.copy()
+                    daily_will_show['buy_price'] = np.nan
+                    daily_will_show['sell_price'] = np.nan
+                    for key, cur_trade_history in df_trade_history.iterrows():
+                        print("cur_trade_history:", cur_trade_history)
+                        if cur_trade_history.buy_or_sell == "buy":
+                            daily_will_show.loc[daily_will_show['trade_date'] == str(cur_trade_history.trade_time.replace("-", "")), [
+                                "buy_price"]] = cur_trade_history.price
+                        if cur_trade_history.buy_or_sell == "sell":
+                            daily_will_show.loc[daily_will_show['trade_date'] == str(cur_trade_history.trade_time.replace("-", "")), [
+                                'sell_price']] = cur_trade_history.price
+
+                    print(daily_will_show)
+                    kline.show_trade_history(daily_will_show)
+
+        treeview_statics.bind("<Double-Button-1>", treeview_statics_show_selected_item)
+
+        lbl.pack()
+        listbox.pack()
+        # display treeview
+        treeview_statics.pack()
+        trv_trade_history.pack()
+
+        top.mainloop()
+
         return
 
 
@@ -330,6 +473,7 @@ def init_trade_strategy_low_volume(trade_core_ins=None):
     trade_core_ins.const_times_of_buy = 1
     trade_core_ins.const_times_of_sell = 2
 
+
 def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None):
     for stock_code in trade_core_ins.g_stock_codes:
         # print(cur_df_daily)
@@ -354,9 +498,9 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 if __name__ == '__main__':
     trade_core = TradeCore()
-    end_day = '20080220' if g_debug_mode else '20240820'
+    end_day = '20081220' if g_debug_mode else '20240820'
     trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
                           begin_day='20050104', end_day=end_day, cash=1000000)
     trade_core.trade_by_daily()
     trade_core.generate_result()
-    trade_core.show_result()
+    trade_core.show_result(trade_func=handle_data_trade_strategy_low_volume)
