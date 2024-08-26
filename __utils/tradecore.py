@@ -12,9 +12,10 @@ import inspect
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-import json
+from line_profiler import LineProfiler
 
 g_debug_mode = True
+g_perf_mode = True
 # g_debug_mode = False
 g_cur_abs_path = ""
 
@@ -73,10 +74,12 @@ class TradeHistory:
 
 class TradeCore:
     g_is_trade_inited = False
+    g_trade_calendar = []
     g_cur_day = datetime.datetime(year=2005, month=1, day=1).date()
     g_begin_day = datetime.datetime(year=2005, month=1, day=1).date()
     g_end_day = datetime.datetime(year=2005, month=1, day=1).date()
     g_df_daily = pd.DataFrame()
+    g_cur_df_daily = pd.DataFrame()
     g_df_close = pd.DataFrame()
     g_df_vol = pd.DataFrame()
     g_trade_func = None
@@ -123,10 +126,19 @@ class TradeCore:
 
         pymysql.install_as_MySQLdb()
         try:
-            # 创建数据库连接
             engine = create_engine("mysql+mysqldb://root:mysql123@127.0.0.1:3306/stock", max_overflow=5)
             conn = engine.connect()
             sql_text = ""
+
+            # 初始化交易日历
+            sql_text = text(f'''select distinct trade_date from daily ''')
+            result = conn.execute(sql_text).fetchall()
+            self.g_trade_calendar = []
+            for element in result:
+                self.g_trade_calendar.append(element[0])
+            print(self.g_trade_calendar)
+
+            # 初始化g_df_daily
             if self.g_stock_codes == "all" or len(self.g_stock_codes) == 0:
                 sql_text = text(f'''select distinct ts_code from daily ''')
                 result = conn.execute(sql_text).fetchall()
@@ -145,7 +157,6 @@ class TradeCore:
             all_data = result.fetchall()
             end_time = time.time()
             print('从数据库中读取股票的所有数据的耗时 {:.2f}秒'.format(end_time - start_time))
-
             self.g_df_daily = pd.DataFrame(list(all_data))
             # g_df_daily = self.g_df_daily[['ts_code', 'trade_date', 'close']]
         except Exception as e:
@@ -160,19 +171,30 @@ class TradeCore:
         return
 
     def trade_by_daily(self):
-
+        print(f'''{'='*10}trade_by_daily begin{'='*10}''')
         start_time = time.time()
         last_print_time = time.time()
+
         while self.g_cur_day < self.g_end_day:
             # print(f'===begin processing: {self.g_cur_day} {self.g_cur_day.strftime("%Y%m%d")}===')
-            # 跳过非交易日
-            if len(self.g_df_daily[self.g_df_daily['trade_date'] == self.g_cur_day.strftime("%Y%m%d")]) < 1:
-                self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
-                continue
-            # else:
-            #     print(self.g_df_daily)
-            self.g_trade_func(self, self.g_df_daily[self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")])
             self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
+            # 跳过非交易日
+            if self.g_cur_day.strftime("%Y%m%d") not in self.g_trade_calendar:
+                continue
+
+            self.g_cur_df_daily = self.g_df_daily[
+                    self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")]
+
+            if True:
+                lp = LineProfiler(self.g_trade_func)
+                last_perf_time = time.time()
+                lp.runcall(self.g_trade_func, self, self.g_cur_df_daily)
+                # 5秒的总执行时间是7小时
+                if time.time() - last_perf_time > 5:
+                    lp.print_stats()
+            else:
+                self.g_trade_func(self, self.g_cur_df_daily)
+
             if time.time() - last_print_time > 10:
                 print(f'=== progress: {(self.g_cur_day-self.g_begin_day)/(self.g_end_day-self.g_begin_day) * 100:.2f}% --- end processing: {self.g_cur_day}, days processed: {(self.g_cur_day-self.g_begin_day).days}天, time passed:{time.time() - start_time:.2f} 秒   ===')
                 last_print_time = time.time()
@@ -210,7 +232,7 @@ class TradeCore:
 
         return
 
-    def sell(self, stock_code, price, shares=-1, last_clear=False):
+    def sell(self, stock_code, price, shares=-1, last_clear=False, sell_date=None):
         # print(f'TradeCore---sell par: stock_code = {stock_code}, price = {price}, cur_day = {self.g_cur_day}')
         for cur_portforlio in self.g_portforlio:
             if cur_portforlio.s_stock_code == stock_code:
@@ -224,7 +246,7 @@ class TradeCore:
                     # cur_portforlio.s_average_cost = 0
                     cur_portforlio.s_current_shares -= shares
 
-        trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day, "sell", last_clear)
+        trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day if sell_date is None else sell_date, "sell", last_clear)
         self.g_trade_history.append(trade_history)
 
         return
@@ -233,22 +255,30 @@ class TradeCore:
         return
 
     def generate_result(self):
-        # 策略收益曲线
-
+        print(f'''{'=' * 10}generate_result begin{'=' * 10}''')
         # 清空持仓
         for portforlio in self.g_portforlio:
             if portforlio.s_current_shares > 0:
-                current_price = self.g_df_daily.loc[
-                    (self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")) & (
-                            self.g_df_daily['ts_code'] == portforlio.s_stock_code)]['close'].tail(1).values[0]
+                # current_price = self.g_df_daily.loc[
+                #     (self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")) & (
+                #             self.g_df_daily['ts_code'] == portforlio.s_stock_code)]['close'].tail(1).values[0]
+                cur_stock_df = self.g_cur_df_daily[self.g_cur_df_daily['ts_code'] == portforlio.s_stock_code]
+                sell_price = cur_stock_df['close'].tail(1).values[0]
+                sell_date = cur_stock_df['trade_date'].tail(1).values[0]
                 # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
-                self.sell(portforlio.s_stock_code, current_price, -1, last_clear=True)
+                self.sell(portforlio.s_stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
 
         # 下单历史
         # 计算卖出时的每笔盈利和盈利率, 进而计算总盈利、胜率、最大回撤等
         with_header = True
-        for stock_code in self.g_stock_codes:
-            print(f'''==================================={stock_code}==================================''')
+
+        df_trade_history_to_file = pd.DataFrame()
+        df_trade_statics_to_file = pd.DataFrame()
+
+        for stock_code, df_cur_stock in self.g_cur_df_daily.groupby('ts_code'):
+        # for stock_code in self.g_stock_codes:
+            if stock_code == self.g_stock_codes[0] or stock_code == self.g_stock_codes[-1]:
+                print(f'''==================================={stock_code}==================================''')
 
             last_buy = None
             total_profit = 0
@@ -275,7 +305,7 @@ class TradeCore:
                             else:
                                 loss_count += 1
                             max_loss = max_loss if max_loss < cur_trade_history.s_profit_change else cur_trade_history.s_profit_change
-            win_percent = win_count / (win_count + loss_count)
+            win_percent = 0.5 if win_count + loss_count == 0 else win_count / (win_count + loss_count)
 
             df_trade_history = pd.DataFrame()
             for cur_trade_history in self.g_trade_history:
@@ -285,33 +315,47 @@ class TradeCore:
                     # print(df_trade_history)
 
             detail_filename = self.g_path + "\\" + "trade_history.csv"
-            df_trade_history.to_csv(detail_filename, mode='a', header=with_header, index=False)
-
-            print(
-                "=" * 10 + f'''total_profit_change:{(total_profit_change - 1) * 100:.2f}%, win_percent:{(win_percent * 100):.2f}%, max_loss:{max_loss * 100:.2f}%, trade_count:{win_count + loss_count}, total_profit:{int(total_profit)} ''' + '=' * 10)
-            statics_filename = self.g_path + "\\" + "statics.csv"
-            df_trade_statics = pd.DataFrame(
-                {'ts_code': stock_code, 'total_profit_change': (total_profit_change - 1) * 100,
-                 'win_percent': (win_percent * 100), 'max_loss': max_loss * 100, 'trade_count': win_count + loss_count,
-                 'total_profit': int(total_profit)}, index=[0])
-            df_trade_statics.to_csv(statics_filename, mode='a', header=with_header, index=False)
-            with_header = False
+            # df_trade_history.to_csv(detail_filename, mode='a', header=with_header, index=False)
+            df_trade_history_to_file = pd.concat([df_trade_history_to_file, df_trade_history], ignore_index=True)
 
             # 继而计算相对收益
-            df_cur_stock = self.g_df_daily.loc[(self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d"))
-                                               & (self.g_df_daily['ts_code'] == stock_code)]
+            # df_cur_stock = self.g_df_daily.loc[(self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d"))
+            #                                    & (self.g_df_daily['ts_code'] == stock_code)]
             # print(df_cur_stock[['ts_code', 'trade_date', 'close']])
-            begin_price = df_cur_stock['close'].values[0]
-            end_price = df_cur_stock['close'].values[-1]
-            benchmark_profit_change = (end_price - begin_price) / begin_price * 100
-            relative_profit_change = (total_profit_change - 1) * 100 - benchmark_profit_change
-            print(
-                f'''benchmark_profit_change is {benchmark_profit_change:.2f}% relative_profit_change is {relative_profit_change:.2f}%''')
-            print(f'''*******************************{stock_code}*******************************''')
+            if len(df_trade_history) >= 2:
+                begin_price = df_cur_stock['close'].values[0]
+                end_price = df_cur_stock['close'].values[-1]
+                benchmark_profit_change = (end_price - begin_price) / begin_price * 100
+                relative_profit_change = (total_profit_change - 1) * 100 - benchmark_profit_change
+            else:
+                benchmark_profit_change = 0
+                relative_profit_change = 0
 
+            if stock_code == self.g_stock_codes[0] or stock_code == self.g_stock_codes[-1]:
+                print(
+                    "=" * 10 + f'''total_profit_change:{(total_profit_change - 1) * 100:.2f}%, win_percent:{(win_percent * 100):.2f}%, max_loss:{max_loss * 100:.2f}%, trade_count:{win_count + loss_count}, total_profit:{int(total_profit)}, benchmark_profit_change is {benchmark_profit_change:.2f}% relative_profit_change is {relative_profit_change:.2f}% ''' + '=' * 10)
+            statics_filename = self.g_path + "\\" + "statics.csv"
+            df_trade_statics = pd.DataFrame(
+                {'ts_code': stock_code,
+                 'total_profit_change': (total_profit_change - 1) * 100,
+                 'win_percent': (win_percent * 100),
+                 'max_loss': max_loss * 100,
+                 'trade_count': win_count + loss_count,
+                 'total_profit': int(total_profit),
+                 'benchmark_profit_change': benchmark_profit_change * 100,
+                 'relative_profit_change': relative_profit_change * 100}, index=[0])
+            # df_trade_statics.to_csv(statics_filename, mode='a', header=with_header, index=False)
+            df_trade_statics_to_file = pd.concat([df_trade_statics_to_file, df_trade_statics], ignore_index=True)
+            # with_header = False
+            if stock_code == self.g_stock_codes[0] or stock_code == self.g_stock_codes[-1]:
+                print(f'''*******************************{stock_code}*******************************''')
+
+        df_trade_history_to_file.to_csv(detail_filename, mode='a', header=True, index=False)
+        df_trade_statics_to_file.to_csv(statics_filename, mode='a', header=True, index=False)
         return
 
     def show_result(self, trade_func=None):
+        print(f'''{'=' * 10}show_result begin{'=' * 10}''')
         result_path = self.g_root_path + "\\" + trade_func.__name__
 
         top = tk.Tk()
@@ -366,7 +410,7 @@ class TradeCore:
                 print("file:", dir_path)
             else:
                 print("folder", dir_path)
-                last_folder_path.append(dir_path)
+                last_folder_path.insert(0, dir_path)
         for item in last_folder_path:
             listbox.insert(tk.END, item)
         listbox.bind("<Double-Button-1>", show_selected_item)
@@ -469,8 +513,8 @@ class TradeCore:
 #     return
 
 def init_trade_strategy_low_volume(trade_core_ins=None):
-    # trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
-    trade_core_ins.g_stock_codes = "all"
+    trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
+    # trade_core_ins.g_stock_codes = "all"
 
     trade_core_ins.g_sum_of_compare_volume = 0
     trade_core_ins.g_cur_count_of_compare_volume = 0
@@ -484,9 +528,13 @@ def init_trade_strategy_low_volume(trade_core_ins=None):
 
 
 def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None):
-    for stock_code in trade_core_ins.g_stock_codes:
+    if (trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
+        return
+
+    for stock_code, df_daily in cur_df_daily.groupby('ts_code'):
+    # for stock_code in trade_core_ins.g_stock_codes:
         # print(cur_df_daily)
-        df_daily = cur_df_daily[cur_df_daily['ts_code'] == stock_code]
+        # df_daily = cur_df_daily[cur_df_daily['ts_code'] == stock_code]
         if len(df_daily) < trade_core_ins.const_count_of_compare_volume:
             continue
 
@@ -499,7 +547,6 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
         if trade_core_ins.get_sharehold(stock_code) > 0 \
                 and current_max_volume > compare_volume * trade_core_ins.const_times_of_sell:
             trade_core_ins.sell(stock_code, df_daily['close'].tail(1).values[0])
-
     # print(f'end of handle_data_trade_strategy_low_volume')
 
     return
@@ -507,9 +554,24 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 if __name__ == '__main__':
     trade_core = TradeCore()
-    end_day = '20061220' if g_debug_mode else '20240820'
+    end_day = '20061012' if g_debug_mode else '20240820'
     trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
                           begin_day='20050104', end_day=end_day, cash=1000000)
-    trade_core.trade_by_daily()
-    trade_core.generate_result()
+
+    if False:
+        lp = LineProfiler(trade_core.trade_by_daily)
+        last_perf_time = time.time()
+        lp.runcall(trade_core.trade_by_daily)
+        if time.time() - last_perf_time > 3:
+            lp.print_stats()
+    else:
+        trade_core.trade_by_daily()
+    # trade_core.trade_by_month()
+
+    lp = LineProfiler(trade_core.generate_result)
+    last_perf_time = time.time()
+    lp.runcall(trade_core.generate_result)
+    if time.time() - last_perf_time > 10:
+        lp.print_stats()
+    # trade_core.generate_result()
     trade_core.show_result(trade_func=handle_data_trade_strategy_low_volume)
