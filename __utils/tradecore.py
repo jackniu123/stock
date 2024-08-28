@@ -15,9 +15,9 @@ from tkinter import messagebox
 from line_profiler import LineProfiler
 
 # 全局开关
-# g_debug_mode = True
-g_debug_mode = False
-g_single_stock_debug = False
+g_debug_a_few_days = False
+g_debug_single_stock = False
+g_debug_two_stocks = False
 g_debug_from_last_100_days = False
 
 g_cur_abs_path = ""
@@ -516,8 +516,8 @@ class TradeCore:
 #     return
 
 def init_trade_strategy_low_volume(trade_core_ins=None):
-    trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"] if g_debug_mode else "all"
-    trade_core_ins.g_stock_codes = ["000020.SZ"] if g_single_stock_debug else trade_core_ins.g_stock_codes
+    trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"] if g_debug_two_stocks else "all"
+    trade_core_ins.g_stock_codes = ["000020.SZ"] if g_debug_single_stock else trade_core_ins.g_stock_codes
 
     trade_core_ins.g_sum_of_compare_volume = 0
     trade_core_ins.g_cur_count_of_compare_volume = 0
@@ -531,13 +531,13 @@ def init_trade_strategy_low_volume(trade_core_ins=None):
 
 g_df_volume = pd.DataFrame()
 def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None):
-    if not b_need_history_daily:
-        print("===cur day:",  trade_core_ins.g_cur_day)
-        for stock_code, df_daily in cur_df_daily:
-            cur_vol = df_daily['vol']
-            print(stock_code, ":vol ", cur_vol)
-            # g_df_volume[stock_code] = pd.DataFrame({})
-        return
+    # if not b_need_history_daily:
+    #     print("===cur day:",  trade_core_ins.g_cur_day)
+    #     for stock_code, df_daily in cur_df_daily:
+    #         cur_vol = df_daily['vol']
+    #         print(stock_code, ":vol ", cur_vol)
+    #         # g_df_volume[stock_code] = pd.DataFrame({})
+    #     return
 
     # 下面的代码依赖历史数据，也就是b_need_history_daily==True
     if (trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
@@ -565,7 +565,7 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 if __name__ == '__main__':
     trade_core = TradeCore()
-    end_day = '20061012' if g_debug_mode else '20240820'
+    end_day = '20061012' if g_debug_a_few_days else '20240820'
     trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
                           begin_day='20050104', end_day=end_day, cash=1000000)
 
