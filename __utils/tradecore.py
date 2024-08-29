@@ -19,6 +19,7 @@ g_debug_a_few_days = False
 g_debug_single_stock = False
 g_debug_two_stocks = False
 g_debug_from_last_100_days = False
+g_dry_run = False
 
 g_cur_abs_path = ""
 
@@ -93,7 +94,8 @@ class TradeCore:
 
     def init_trade(self, init_func, trade_func, begin_day, end_day, cash=1000000):
         if not self.g_is_trade_inited:
-            print(f"""{"="*10}trade_core init_trade: init_trade:{init_func.__name__}, trade_func:{trade_func.__name__}, begin_day:{begin_day}, end_day:{end_day}{"="*10}""")
+            print(
+                f"""{"=" * 10}trade_core init_trade: init_trade:{init_func.__name__}, trade_func:{trade_func.__name__}, begin_day:{begin_day}, end_day:{end_day}{"=" * 10}""")
             self.g_trade_func = trade_func
             self.g_begin_day = datetime.datetime(year=int(begin_day[0:4]), month=int(begin_day[4:6]),
                                                  day=int(begin_day[6:8])).date()
@@ -139,10 +141,12 @@ class TradeCore:
                 for element in result:
                     self.g_stock_codes.append(element[0])
                 print(self.g_stock_codes)
-                sql_text = text(f'''select ts_code, trade_date, close, vol from daily where trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
+                sql_text = text(
+                    f'''select ts_code, trade_date, close, vol from daily where trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
             else:
                 stock_list = ','.join("'{0}'".format(x) for x in self.g_stock_codes)
-                sql_text = text(f'''select * from daily where ts_code in ({stock_list}) and trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
+                sql_text = text(
+                    f'''select * from daily where ts_code in ({stock_list}) and trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
 
             # 初始化g_df_daily fast path
             while self.g_end_day - self.g_begin_day > datetime.timedelta(365) and len(self.g_stock_codes) > 5000:
@@ -165,7 +169,8 @@ class TradeCore:
                         break
 
                     start_time = time.time()
-                    self.g_df_daily = pd.merge(self.g_df_close, self.g_df_vol, on=['trade_date', 'ts_code'], how='outer')
+                    self.g_df_daily = pd.merge(self.g_df_close, self.g_df_vol, on=['trade_date', 'ts_code'],
+                                               how='outer')
                     print('从merge close.csv和vol.csv中数据的耗时 {:.2f}秒'.format(time.time() - start_time))
                     print(self.g_df_daily)
 
@@ -205,7 +210,7 @@ class TradeCore:
         return
 
     def trade_by_daily(self):
-        print(f'''{'='*10}trade_by_daily begin{'='*10}''')
+        print(f'''{'=' * 10}trade_by_daily begin{'=' * 10}''')
         start_time = time.time()
         last_print_time = time.time()
 
@@ -221,20 +226,22 @@ class TradeCore:
                 continue
 
             self.g_cur_df_daily = self.g_df_daily[
-                    self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")]
+                self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")]
 
-            if True:
-                lp = LineProfiler(self.g_trade_func)
-                last_perf_time = time.time()
-                lp.runcall(self.g_trade_func, self, self.g_cur_df_daily)
-                # 5秒的总执行时间是7小时
-                if time.time() - last_perf_time > 5:
-                    lp.print_stats()
-            else:
-                self.g_trade_func(self, self.g_cur_df_daily)
+            if not g_dry_run:
+                if True:
+                    lp = LineProfiler(self.g_trade_func)
+                    last_perf_time = time.time()
+                    lp.runcall(self.g_trade_func, self, self.g_cur_df_daily)
+                    # 5秒的总执行时间是7小时
+                    if time.time() - last_perf_time > 5:
+                        lp.print_stats()
+                else:
+                    self.g_trade_func(self, self.g_cur_df_daily)
 
             if time.time() - last_print_time > 100:
-                print(f'=== progress: {(self.g_cur_day-self.g_begin_day)/(self.g_end_day-self.g_begin_day) * 100:.2f}% --- end processing: {self.g_cur_day}, days processed: {(self.g_cur_day-self.g_begin_day).days}天, time passed:{time.time() - start_time:.2f} 秒   ===')
+                print(
+                    f'=== progress: {(self.g_cur_day - self.g_begin_day) / (self.g_end_day - self.g_begin_day) * 100:.2f}% --- end processing: {self.g_cur_day}, days processed: {(self.g_cur_day - self.g_begin_day).days}天, time passed:{time.time() - start_time:.2f} 秒   ===')
                 last_print_time = time.time()
 
         end_time = time.time()
@@ -287,7 +294,8 @@ class TradeCore:
                 if cur_portforlio.s_stock_code == stock_code:
                     cur_portforlio.s_current_shares -= shares
 
-        trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day if sell_date is None else sell_date, "sell", last_clear)
+        trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day if sell_date is None else sell_date,
+                                     "sell", last_clear)
         self.g_trade_history.append(trade_history)
 
         return
@@ -318,7 +326,7 @@ class TradeCore:
         df_trade_statics_to_file = pd.DataFrame()
 
         for stock_code, df_cur_stock in self.g_cur_df_daily.groupby('ts_code'):
-        # for stock_code in self.g_stock_codes:
+            # for stock_code in self.g_stock_codes:
             if stock_code == self.g_stock_codes[0] or stock_code == self.g_stock_codes[-1]:
                 print(f'''==================================={stock_code}==================================''')
 
@@ -523,7 +531,8 @@ class TradeCore:
                     print(begin_day)
                     print(end_day)
                     # 显示分析图
-                    daily_by_code = kline.get_daily_by_code(stock_code=stock_code, start_date=begin_day, end_date=end_day)
+                    daily_by_code = kline.get_daily_by_code(stock_code=stock_code, start_date=begin_day,
+                                                            end_date=end_day)
                     print(daily_by_code)
                     daily_will_show = daily_by_code.copy()
                     daily_will_show['buy_price'] = np.nan
@@ -531,11 +540,13 @@ class TradeCore:
                     for key, cur_trade_history in df_trade_history.iterrows():
                         print("cur_trade_history:", cur_trade_history)
                         if cur_trade_history.buy_or_sell == "buy":
-                            daily_will_show.loc[daily_will_show['trade_date'] == str(cur_trade_history.trade_time.replace("-", "")), [
-                                "buy_price"]] = cur_trade_history.price
+                            daily_will_show.loc[
+                                daily_will_show['trade_date'] == str(cur_trade_history.trade_time.replace("-", "")), [
+                                    "buy_price"]] = cur_trade_history.price
                         if cur_trade_history.buy_or_sell == "sell":
-                            daily_will_show.loc[daily_will_show['trade_date'] == str(cur_trade_history.trade_time.replace("-", "")), [
-                                'sell_price']] = cur_trade_history.price
+                            daily_will_show.loc[
+                                daily_will_show['trade_date'] == str(cur_trade_history.trade_time.replace("-", "")), [
+                                    'sell_price']] = cur_trade_history.price
 
                     print(daily_will_show)
                     kline.show_trade_history(daily_will_show)
@@ -552,16 +563,6 @@ class TradeCore:
 
         return
 
-
-#
-# def trade_strategy_MA20(trade_core_ins=None, cur_day=None, cur_df_daily=None):
-#     stock_code = '000001.SZ'
-#     cur_df_daily = cur_df_daily[cur_df_daily['ts_code'] == stock_code]
-#     trade_core_ins.buy(stock_code, cur_df_daily['open'][0], cur_day)
-#     trade_core_ins.sell(stock_code, cur_df_daily['close'][0], cur_day)
-#     print(f'trade_strategy_MA20: cur_day = {cur_day}: stock_daily of {stock_code} is:\n ' ,  cur_df_daily)
-#
-#     return
 
 def init_trade_strategy_low_volume(trade_core_ins=None):
     if g_debug_single_stock:
@@ -581,21 +582,25 @@ def init_trade_strategy_low_volume(trade_core_ins=None):
     trade_core_ins.const_times_of_buy = 1
     trade_core_ins.const_times_of_sell = 2
 
-g_df_volume = pd.DataFrame()
-def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None):
 
+g_df_volume = pd.DataFrame()
+
+
+def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None):
     # 下面的代码依赖历史数据，也就是b_need_history_daily==True
-    if (trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
+    if (
+            trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
         return
 
     # 避免处理过大的数据集合导致耗时问题
     if len(cur_df_daily) > 100 * 1000:
-        begin_date = (trade_core_ins.g_cur_day - datetime.timedelta(trade_core_ins.const_count_of_compare_volume + 100)).strftime("%Y%m%d")
+        begin_date = (trade_core_ins.g_cur_day - datetime.timedelta(
+            trade_core_ins.const_count_of_compare_volume + 100)).strftime("%Y%m%d")
         cur_df_daily = cur_df_daily[cur_df_daily['trade_date'] > begin_date]
         # print(cur_df_daily)
 
     for stock_code, df_daily in cur_df_daily.groupby('ts_code'):
-    # for stock_code in trade_core_ins.g_stock_codes:
+        # for stock_code in trade_core_ins.g_stock_codes:
         # print(cur_df_daily)
         # df_daily = cur_df_daily[cur_df_daily['ts_code'] == stock_code]
         if len(df_daily) < trade_core_ins.const_count_of_compare_volume:
@@ -604,7 +609,8 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
         compare_volume = df_daily['vol'][-trade_core_ins.const_count_of_compare_volume:].mean()
 
         if trade_core_ins.get_sharehold(stock_code) == 0 \
-                and df_daily['vol'][-trade_core_ins.const_count_of_low_volume_days:].max() < compare_volume * trade_core_ins.const_times_of_buy:
+                and df_daily['vol'][
+                    -trade_core_ins.const_count_of_low_volume_days:].max() < compare_volume * trade_core_ins.const_times_of_buy:
             trade_core_ins.buy(stock_code, df_daily['close'].tail(1).values[0], 1000)
         elif trade_core_ins.get_sharehold(stock_code) > 0 \
                 and df_daily['vol'].values[-1] > compare_volume * trade_core_ins.const_times_of_sell:
@@ -638,5 +644,6 @@ if __name__ == '__main__':
     if time.time() - last_perf_time > 10:
         lp.print_stats()
     # trade_core.generate_result()
-    print(f'''{'=' * 10} {datetime.datetime.now()} end execute: {__file__} time consumed {datetime.datetime.now() - begin_time} {'=' * 10} ''')
+    print(
+        f'''{'=' * 10} {datetime.datetime.now()} end execute: {__file__} time consumed {datetime.datetime.now() - begin_time} {'=' * 10} ''')
     trade_core.show_result(trade_func=handle_data_trade_strategy_low_volume)
