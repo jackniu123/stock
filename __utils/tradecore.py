@@ -17,7 +17,7 @@ from line_profiler import LineProfiler
 # 全局开关
 g_debug_a_few_days = False
 g_debug_single_stock = False
-g_debug_two_stocks = False
+g_debug_two_stocks = True
 g_debug_from_last_100_days = False
 
 g_cur_abs_path = ""
@@ -87,7 +87,7 @@ class TradeCore:
     g_df_vol = pd.DataFrame()
     g_trade_func = None
     g_filter_func = None
-    g_stock_codes = ['000001.SZ']
+    g_stock_codes = "all"
     g_path = ""
     g_root_path = __file__.replace('.', '_')
 
@@ -139,7 +139,7 @@ class TradeCore:
             self.g_trade_calendar = []
             for element in result:
                 self.g_trade_calendar.append(element[0])
-            print(self.g_trade_calendar)
+            # print(self.g_trade_calendar)
 
             # 初始化g_df_daily
             if self.g_stock_codes == "all" or len(self.g_stock_codes) == 0:
@@ -161,6 +161,7 @@ class TradeCore:
             end_time = time.time()
             print('从数据库中读取股票的所有数据的耗时 {:.2f}秒'.format(end_time - start_time))
             self.g_df_daily = pd.DataFrame(list(all_data))
+            print('转化数据库数据为DataFrame的耗时 {:.2f}秒'.format(time.time() - end_time))
             # g_df_daily = self.g_df_daily[['ts_code', 'trade_date', 'close']]
         except Exception as e:
             print("\033[0;31;40m", e, "\033[0m")
@@ -516,8 +517,12 @@ class TradeCore:
 #     return
 
 def init_trade_strategy_low_volume(trade_core_ins=None):
-    trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"] if g_debug_two_stocks else "all"
-    trade_core_ins.g_stock_codes = ["000020.SZ"] if g_debug_single_stock else trade_core_ins.g_stock_codes
+    if g_debug_single_stock:
+        trade_core_ins.g_stock_codes = ["000001.SZ"]
+    elif g_debug_two_stocks:
+        trade_core_ins.g_stock_codes = ["000001.SZ", "000020.SZ"]
+    else:
+        trade_core_ins.g_stock_codes = "all"
 
     trade_core_ins.g_sum_of_compare_volume = 0
     trade_core_ins.g_cur_count_of_compare_volume = 0
@@ -531,13 +536,6 @@ def init_trade_strategy_low_volume(trade_core_ins=None):
 
 g_df_volume = pd.DataFrame()
 def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None):
-    # if not b_need_history_daily:
-    #     print("===cur day:",  trade_core_ins.g_cur_day)
-    #     for stock_code, df_daily in cur_df_daily:
-    #         cur_vol = df_daily['vol']
-    #         print(stock_code, ":vol ", cur_vol)
-    #         # g_df_volume[stock_code] = pd.DataFrame({})
-    #     return
 
     # 下面的代码依赖历史数据，也就是b_need_history_daily==True
     if (trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
@@ -564,6 +562,8 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 
 if __name__ == '__main__':
+    begin_time = datetime.datetime.now()
+    print(f'''{'=' * 10} {begin_time} begin execute: {__file__}{'=' * 10}''')
     trade_core = TradeCore()
     end_day = '20061012' if g_debug_a_few_days else '20240820'
     trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
@@ -585,4 +585,5 @@ if __name__ == '__main__':
     if time.time() - last_perf_time > 10:
         lp.print_stats()
     # trade_core.generate_result()
+    print(f'''{'=' * 10} {datetime.datetime.now()} end execute: {__file__} time concumed {datetime.datetime.now() - begin_time} {'=' * 10} ''')
     trade_core.show_result(trade_func=handle_data_trade_strategy_low_volume)
