@@ -17,7 +17,7 @@ from line_profiler import LineProfiler
 # 全局开关
 g_debug_a_few_days = False
 g_debug_single_stock = False
-g_debug_two_stocks = True
+g_debug_two_stocks = False
 g_debug_from_last_100_days = False
 
 g_cur_abs_path = ""
@@ -116,16 +116,6 @@ class TradeCore:
             self.g_is_trade_inited = True
 
     def init_df_daily(self):
-        # 更高性能的做法
-        # if True:
-        #     field_name = 'close'
-        #     sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_flatten_' + field_name + '.csv'
-        #     self.g_df_close = pd.read_csv(sql_query_flatten_file_name, index_col=0)
-        #
-        #     field_name = 'vol'
-        #     sql_query_flatten_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_flatten_' + field_name + '.csv'
-        #     self.g_df_vol = pd.read_csv(sql_query_flatten_file_name, index_col=0)
-        #     return
 
         pymysql.install_as_MySQLdb()
         try:
@@ -149,20 +139,60 @@ class TradeCore:
                 for element in result:
                     self.g_stock_codes.append(element[0])
                 print(self.g_stock_codes)
-                sql_text = text(f'''select ts_code, trade_date, open, close, high, vol from daily where trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
+                sql_text = text(f'''select ts_code, trade_date, close, vol from daily where trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
             else:
                 stock_list = ','.join("'{0}'".format(x) for x in self.g_stock_codes)
                 sql_text = text(f'''select * from daily where ts_code in ({stock_list}) and trade_date between \'{self.g_begin_day.strftime("%Y%m%d")}\' and \'{self.g_end_day.strftime("%Y%m%d")}\' ''')
 
-            start_time = time.time()
-            print(f'开始查询数据库：:{sql_text}')
-            result = conn.execute(sql_text)
-            all_data = result.fetchall()
-            end_time = time.time()
-            print('从数据库中读取股票的所有数据的耗时 {:.2f}秒'.format(end_time - start_time))
-            self.g_df_daily = pd.DataFrame(list(all_data))
-            print('转化数据库数据为DataFrame的耗时 {:.2f}秒'.format(time.time() - end_time))
-            # g_df_daily = self.g_df_daily[['ts_code', 'trade_date', 'close']]
+            # 初始化g_df_daily fast path
+            while self.g_end_day - self.g_begin_day > datetime.timedelta(365) and len(self.g_stock_codes) > 5000:
+
+                if False:
+                    start_time = time.time()
+                    field_name = 'close'
+                    sql_query_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all_' + field_name + '.csv'
+                    self.g_df_close = pd.read_csv(sql_query_file_name, index_col=0)
+                    print('从close.csv中读取的耗时 {:.2f}秒'.format(time.time() - start_time))
+                    if len(self.g_df_close) == 0:
+                        break
+
+                    start_time = time.time()
+                    field_name = 'vol'
+                    sql_query_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all_' + field_name + '.csv'
+                    self.g_df_vol = pd.read_csv(sql_query_file_name, index_col=0)
+                    print('从vol.csv中读取的耗时 {:.2f}秒'.format(time.time() - start_time))
+                    if len(self.g_df_vol) == 0:
+                        break
+
+                    start_time = time.time()
+                    self.g_df_daily = pd.merge(self.g_df_close, self.g_df_vol, on=['trade_date', 'ts_code'], how='outer')
+                    print('从merge close.csv和vol.csv中数据的耗时 {:.2f}秒'.format(time.time() - start_time))
+                    print(self.g_df_daily)
+
+                    start_time = time.time()
+                    field_name = 'close_vol'
+                    sql_query_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all_' + field_name + '.csv'
+                    self.g_df_daily.to_csv(sql_query_file_name)
+                    print('写入close_vol.csv的耗时 {:.2f}秒'.format(time.time() - start_time))
+
+                start_time = time.time()
+                field_name = 'close_vol'
+                sql_query_file_name = 'D:/不要删除牛爸爸的程序/__utils/sql_query_all_' + field_name + '.csv'
+                self.g_df_daily = pd.read_csv(sql_query_file_name, index_col=0, dtype={'trade_date': str})
+                print('从close_vol.csv中读取的耗时 {:.2f}秒'.format(time.time() - start_time))
+
+                break
+
+            if len(self.g_df_daily) == 0:
+                start_time = time.time()
+                print(f'开始查询数据库：:{sql_text}')
+                result = conn.execute(sql_text)
+                all_data = result.fetchall()
+                end_time = time.time()
+                print('从数据库中读取股票的所有数据的耗时 {:.2f}秒'.format(end_time - start_time))
+                self.g_df_daily = pd.DataFrame(list(all_data))
+                print('转化数据库数据为DataFrame的耗时 {:.2f}秒'.format(time.time() - end_time))
+                # g_df_daily = self.g_df_daily[['ts_code', 'trade_date', 'close']]
         except Exception as e:
             print("\033[0;31;40m", e, "\033[0m")
             import traceback
@@ -171,7 +201,7 @@ class TradeCore:
             conn.commit()
             conn.close()
 
-        print('从数据库中查询到的表格为：\n', self.g_df_daily)
+        print('g_df_daily初始化为：\n', self.g_df_daily)
         return
 
     def trade_by_daily(self):
@@ -244,7 +274,14 @@ class TradeCore:
         # print(f'TradeCore---sell par: stock_code = {stock_code}, price = {price}, cur_day = {self.g_cur_day}')
 
         if shares == -1:
-            self.g_portforlio = list(filter(lambda cur_portforlio: not cur_portforlio.s_stock_code == stock_code, self.g_portforlio))
+            # 不能轻易删除已有的元素，否则容易导致外部循环死循环
+            # self.g_portforlio = list(filter(lambda cur_portforlio: not cur_portforlio.s_stock_code == stock_code, self.g_portforlio))
+            for cur_portforlio in self.g_portforlio:
+                if cur_portforlio.s_stock_code == stock_code:
+                    # 代表清仓处理
+                    # 卖出不改成本。
+                    # cur_portforlio.s_average_cost = 0
+                    cur_portforlio.s_current_shares = 0
         else:
             for cur_portforlio in self.g_portforlio:
                 if cur_portforlio.s_stock_code == stock_code:
@@ -260,20 +297,21 @@ class TradeCore:
 
     def generate_result(self):
         print(f'''{'=' * 10}generate_result begin{'=' * 10}''')
-        # 清空持仓
-        for portforlio in self.g_portforlio:
-            if portforlio.s_current_shares > 0:
-                # current_price = self.g_df_daily.loc[
-                #     (self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")) & (
-                #             self.g_df_daily['ts_code'] == portforlio.s_stock_code)]['close'].tail(1).values[0]
-                cur_stock_df = self.g_cur_df_daily[self.g_cur_df_daily['ts_code'] == portforlio.s_stock_code]
-                sell_price = cur_stock_df['close'].tail(1).values[0]
-                sell_date = cur_stock_df['trade_date'].tail(1).values[0]
-                # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
-                self.sell(portforlio.s_stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
+        # start_time = time.time()
+        # for portforlio in self.g_portforlio:
+        #     if portforlio.s_current_shares > 0:
+        #         # current_price = self.g_df_daily.loc[
+        #         #     (self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")) & (
+        #         #             self.g_df_daily['ts_code'] == portforlio.s_stock_code)]['close'].tail(1).values[0]
+        #         cur_stock_df = self.g_cur_df_daily[self.g_cur_df_daily['ts_code'] == portforlio.s_stock_code]
+        #         sell_price = cur_stock_df['close'].tail(1).values[0]
+        #         sell_date = cur_stock_df['trade_date'].tail(1).values[0]
+        #         # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
+        #         self.sell(portforlio.s_stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
+        # print('执行完终末清仓的耗时 {:.2f}秒'.format(time.time() - start_time))
 
-        # 下单历史
-        # 计算卖出时的每笔盈利和盈利率, 进而计算总盈利、胜率、最大回撤等
+        start_time = time.time()
+        # 根据下单历史计算卖出时的每笔盈利和盈利率, 进而计算总盈利、胜率、最大回撤等
         with_header = True
 
         df_trade_history_to_file = pd.DataFrame()
@@ -283,6 +321,14 @@ class TradeCore:
         # for stock_code in self.g_stock_codes:
             if stock_code == self.g_stock_codes[0] or stock_code == self.g_stock_codes[-1]:
                 print(f'''==================================={stock_code}==================================''')
+
+            # 清空持仓
+            for portforlio in self.g_portforlio:
+                if portforlio.s_stock_code == stock_code and portforlio.s_current_shares > 0:
+                    sell_price = df_cur_stock['close'].tail(1).values[0]
+                    sell_date = df_cur_stock['trade_date'].tail(1).values[0]
+                    # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
+                    self.sell(portforlio.s_stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
 
             last_buy = None
             total_profit = 0
@@ -354,6 +400,7 @@ class TradeCore:
             if stock_code == self.g_stock_codes[0] or stock_code == self.g_stock_codes[-1]:
                 print(f'''*******************************{stock_code}*******************************''')
 
+        print('执行完统计的耗时 {:.2f}秒'.format(time.time() - start_time))
         df_trade_history_to_file.to_csv(detail_filename, mode='a', header=True, index=False)
         df_trade_statics_to_file.to_csv(statics_filename, mode='a', header=True, index=False)
         return
@@ -439,7 +486,7 @@ class TradeCore:
                 if True:
                     begin_day = None
                     end_day = None
-                    # g_cur_abs_path = "D:\\不要删除牛爸爸的程序\\__utils\\tradecore_py\\handle_data_trade_strategy_low_volume\\20240825_114911\\"
+
                     for line in open(g_cur_abs_path + "\\" + "config.conf", 'r'):
                         if line.find("g_begin_day") > 0 and line.find(", datetime") > 0:
                             print('content:', line)
@@ -541,6 +588,12 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
     if (trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
         return
 
+    # 避免处理过大的数据集合导致耗时问题
+    if len(cur_df_daily) > 100 * 1000:
+        begin_date = (trade_core_ins.g_cur_day - datetime.timedelta(trade_core_ins.const_count_of_compare_volume + 100)).strftime("%Y%m%d")
+        cur_df_daily = cur_df_daily[cur_df_daily['trade_date'] > begin_date]
+        # print(cur_df_daily)
+
     for stock_code, df_daily in cur_df_daily.groupby('ts_code'):
     # for stock_code in trade_core_ins.g_stock_codes:
         # print(cur_df_daily)
@@ -585,5 +638,5 @@ if __name__ == '__main__':
     if time.time() - last_perf_time > 10:
         lp.print_stats()
     # trade_core.generate_result()
-    print(f'''{'=' * 10} {datetime.datetime.now()} end execute: {__file__} time concumed {datetime.datetime.now() - begin_time} {'=' * 10} ''')
+    print(f'''{'=' * 10} {datetime.datetime.now()} end execute: {__file__} time consumed {datetime.datetime.now() - begin_time} {'=' * 10} ''')
     trade_core.show_result(trade_func=handle_data_trade_strategy_low_volume)
