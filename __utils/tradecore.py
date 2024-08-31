@@ -20,6 +20,8 @@ g_debug_single_stock = False
 g_debug_two_stocks = False
 g_debug_from_last_100_days = False
 g_dry_run = False
+g_b_use_ndarrary = False
+CONST_CLOSE_COLUMN_INDEX = 1
 
 g_cur_abs_path = ""
 
@@ -84,6 +86,8 @@ class TradeCore:
     g_end_day = datetime.datetime(year=2005, month=1, day=1).date()
     g_df_daily = pd.DataFrame()
     g_cur_df_daily = pd.DataFrame()
+    g_ary_daily = np.array([])
+    g_cur_ary_daily = np.array([])
     g_df_close = pd.DataFrame()
     g_df_vol = pd.DataFrame()
     g_trade_func = None
@@ -206,6 +210,9 @@ class TradeCore:
             conn.commit()
             conn.close()
 
+        if g_b_use_ndarrary:
+            self.g_ary_daily = self.g_df_daily.values
+
         print('g_df_daily初始化为：\n', self.g_df_daily)
         return
 
@@ -225,19 +232,47 @@ class TradeCore:
             if self.g_cur_day.strftime("%Y%m%d") not in self.g_trade_calendar:
                 continue
 
-            self.g_cur_df_daily = self.g_df_daily[
-                self.g_df_daily['trade_date'] <= self.g_cur_day.strftime("%Y%m%d")]
+            if g_b_use_ndarrary:
+                behind_day_str = (self.g_cur_day + datetime.timedelta(1)).strftime("%Y%m%d")
+                # found_index = 0
+                # for i in range(len(self.g_ary_daily)):
+                #     if self.g_ary_daily[i][CONST_CLOSE_COLUMN_INDEX] >= behind_day_str:
+                #         # print(data_np[i][1])
+                #         found_index = i
+                #         break
+                # self.g_cur_ary_daily = self.g_ary_daily[0:found_index, 0:]
+
+                column = self.g_ary_daily[:, 1]  # 第二列
+                mask = np.logical_or(column < behind_day_str, False)
+                self.g_cur_ary_daily = self.g_ary_daily[mask]
+
+            else:
+                behind_day_str = (self.g_cur_day + datetime.timedelta(1)).strftime("%Y%m%d")
+                self.g_cur_df_daily = self.g_df_daily[
+                    self.g_df_daily['trade_date'] < behind_day_str]
 
             if not g_dry_run:
                 if True:
                     lp = LineProfiler(self.g_trade_func)
                     last_perf_time = time.time()
-                    lp.runcall(self.g_trade_func, self, self.g_cur_df_daily)
+                    if g_b_use_ndarrary:
+                        lp.runcall(self.g_trade_func, self, self.g_cur_ary_daily)
+                    else:
+                        lp.runcall(self.g_trade_func, self, self.g_cur_df_daily)
                     # 5秒的总执行时间是7小时
                     if time.time() - last_perf_time > 5:
                         lp.print_stats()
                 else:
-                    self.g_trade_func(self, self.g_cur_df_daily)
+                    if g_b_use_ndarrary:
+                        self.g_trade_func(self, self.g_cur_ary_daily)
+                    else:
+                        self.g_trade_func(self, self.g_cur_df_daily)
+            else:
+                print('dry run...：', self.g_cur_day)
+                # 提前结束，用于分析程序
+                if self.g_cur_day - self.g_begin_day > datetime.timedelta(300):
+                    print('dry run...： exit(0)')
+                    exit(0)
 
             if time.time() - last_print_time > 100:
                 print(
@@ -592,6 +627,29 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
             trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
         return
 
+
+    if g_b_use_ndarrary:
+        print(cur_daily)
+        for i in range(len(cur_daily)):
+            # for stock_code in trade_core_ins.g_stock_codes:
+            # print(cur_df_daily)
+            # df_daily = cur_df_daily[cur_df_daily['ts_code'] == stock_code]
+            if len(df_daily) < trade_core_ins.const_count_of_compare_volume:
+                continue
+
+            compare_volume = df_daily['vol'][-trade_core_ins.const_count_of_compare_volume:].mean()
+
+            if trade_core_ins.get_sharehold(stock_code) == 0 \
+                    and df_daily['vol'][
+                        -trade_core_ins.const_count_of_low_volume_days:].max() < compare_volume * trade_core_ins.const_times_of_buy:
+                trade_core_ins.buy(stock_code, df_daily['close'].tail(1).values[0], 1000)
+            elif trade_core_ins.get_sharehold(stock_code) > 0 \
+                    and df_daily['vol'].values[-1] > compare_volume * trade_core_ins.const_times_of_sell:
+                trade_core_ins.sell(stock_code, df_daily['close'].tail(1).values[0])
+        # print(f'end of handle_data_trade_strategy_low_volume')
+
+    return
+
     # 避免处理过大的数据集合导致耗时问题
     if len(cur_df_daily) > 100 * 1000:
         begin_date = (trade_core_ins.g_cur_day - datetime.timedelta(
@@ -628,7 +686,7 @@ if __name__ == '__main__':
     trade_core.init_trade(init_func=init_trade_strategy_low_volume, trade_func=handle_data_trade_strategy_low_volume,
                           begin_day='20050104', end_day=end_day, cash=1000000)
 
-    if False:
+    if g_dry_run:
         lp = LineProfiler(trade_core.trade_by_daily)
         last_perf_time = time.time()
         lp.runcall(trade_core.trade_by_daily)
