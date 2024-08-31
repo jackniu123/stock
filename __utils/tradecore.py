@@ -19,6 +19,7 @@ g_debug_a_few_days = False
 g_debug_single_stock = False
 g_debug_two_stocks = False
 g_debug_from_last_100_days = False
+g_debug_first_100_days = False
 g_dry_run = False
 g_b_use_ndarrary = False
 CONST_CLOSE_COLUMN_INDEX = 1
@@ -137,7 +138,10 @@ class TradeCore:
                 self.g_trade_calendar.append(element[0])
             # print(self.g_trade_calendar)
 
-            # 初始化g_df_daily
+            # 初始化g_df_daily:
+            # 1，完整查询数据库的耗时是350秒；读取close_vol.csv文件的耗时是6-8秒；
+            # 2，查询一只股票或者查询一天的数据是0.8秒；对完整df进行过滤获取一天或者一只股票的数据的时间是0.5秒，获取很多天或者很多只股票的时间，不超过1秒。所以，暂时没必要实现只提供当天股票数据的主循环。
+            # 3，
             if self.g_stock_codes == "all" or len(self.g_stock_codes) == 0:
                 sql_text = text(f'''select distinct ts_code from daily ''')
                 result = conn.execute(sql_text).fetchall()
@@ -227,6 +231,10 @@ class TradeCore:
                 self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
                 continue
 
+            if g_debug_first_100_days and self.g_cur_day > self.g_begin_day + datetime.timedelta(100):
+                self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
+                continue
+
             self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
             # 跳过非交易日
             if self.g_cur_day.strftime("%Y%m%d") not in self.g_trade_calendar:
@@ -270,9 +278,9 @@ class TradeCore:
             else:
                 print('dry run...：', self.g_cur_day)
                 # 提前结束，用于分析程序
-                if self.g_cur_day - self.g_begin_day > datetime.timedelta(300):
-                    print('dry run...： exit(0)')
-                    exit(0)
+                # if self.g_cur_day - self.g_begin_day > datetime.timedelta(300):
+                #     print('dry run...： exit(0)')
+                #     exit(0)
 
             if time.time() - last_print_time > 100:
                 print(
