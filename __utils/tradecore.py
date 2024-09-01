@@ -18,7 +18,7 @@ from line_profiler import LineProfiler
 g_only_show_result = False
 g_debug_a_few_days = False
 g_debug_single_stock = False
-g_debug_two_stocks = True
+g_debug_two_stocks = False
 g_debug_from_last_100_days = False
 g_debug_first_100_days = False
 g_dry_run = False
@@ -666,13 +666,14 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
         if len(df_daily) < trade_core_ins.const_count_of_compare_volume:
             continue
 
-        compare_volume = df_daily['vol'][-trade_core_ins.const_count_of_compare_volume:].mean()
+        compare_volume = df_daily['vol'].values[-trade_core_ins.const_count_of_compare_volume:].mean()
+        current_shares = trade_core_ins.get_sharehold(stock_code)
 
-        if trade_core_ins.get_sharehold(stock_code) == 0 \
-                and df_daily['vol'][
+        if current_shares == 0 \
+                and df_daily['vol'].values[
                     -trade_core_ins.const_count_of_low_volume_days:].max() < compare_volume * trade_core_ins.const_times_of_buy:
             trade_core_ins.buy(stock_code, df_daily['close'].tail(1).values[0], 1000)
-        elif trade_core_ins.get_sharehold(stock_code) > 0 \
+        elif current_shares > 0 \
                 and df_daily['vol'].values[-1] > compare_volume * trade_core_ins.const_times_of_sell:
             trade_core_ins.sell(stock_code, df_daily['close'].tail(1).values[0])
     # print(f'end of handle_data_trade_strategy_low_volume')
