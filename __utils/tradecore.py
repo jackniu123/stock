@@ -18,7 +18,7 @@ from line_profiler import LineProfiler
 g_only_show_result = False
 g_debug_a_few_days = False
 g_debug_single_stock = False
-g_debug_two_stocks = False
+g_debug_two_stocks = True
 g_debug_from_last_100_days = False
 g_debug_first_100_days = False
 g_dry_run = False
@@ -319,17 +319,19 @@ class TradeCore:
 
         if shares == -1:
             # 不能轻易删除已有的元素，否则容易导致外部循环死循环
-            # self.g_portforlio = list(filter(lambda cur_portforlio: not cur_portforlio.s_stock_code == stock_code, self.g_portforlio))
-            for cur_portforlio in self.g_portforlio:
-                if cur_portforlio.s_stock_code == stock_code:
-                    # 代表清仓处理
-                    # 卖出不改成本。
-                    # cur_portforlio.s_average_cost = 0
-                    cur_portforlio.s_current_shares = 0
+            self.g_portforlio = list(filter(lambda cur_portforlio: not cur_portforlio.s_stock_code == stock_code, self.g_portforlio))
+            # for cur_portforlio in self.g_portforlio:
+            #     if cur_portforlio.s_stock_code == stock_code:
+            #         # 代表清仓处理
+            #         # 卖出不改成本。
+            #         # cur_portforlio.s_average_cost = 0
+            #         cur_portforlio.s_current_shares = 0
+
         else:
             for cur_portforlio in self.g_portforlio:
                 if cur_portforlio.s_stock_code == stock_code:
                     cur_portforlio.s_current_shares -= shares
+                    # if cur_portforlio.s_current_shares == 0: delete
 
         trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day if sell_date is None else sell_date,
                                      "sell", last_clear)
@@ -370,10 +372,11 @@ class TradeCore:
             # 清空持仓
             for portforlio in self.g_portforlio:
                 if portforlio.s_stock_code == stock_code and portforlio.s_current_shares > 0:
-                    sell_price = df_cur_stock['close'].tail(1).values[0]
-                    sell_date = df_cur_stock['trade_date'].tail(1).values[0]
+                    sell_price = df_cur_stock['close'].values[-1]
+                    sell_date = df_cur_stock['trade_date'].values[-1]
                     # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
                     self.sell(portforlio.s_stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
+                    break
 
             last_buy = None
             total_profit = 0
