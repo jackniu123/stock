@@ -263,7 +263,7 @@ class InterCandle:
         self.t16 = fig.text(0.70, 0.90, f'', **small_red_font)
         self.t17 = fig.text(0.70, 0.86, '跌停: ', **normal_label_font)
         self.t18 = fig.text(0.70, 0.86, f'', **small_green_font)
-        self.t19 = fig.text(0.85, 0.90, '均价: ', **normal_label_font)
+        self.t19 = fig.text(0.85, 0.90, '收盘: ', **normal_label_font)
         self.t20 = fig.text(0.85, 0.90, f'', **normal_font)
         self.t21 = fig.text(0.85, 0.86, '昨收: ', **normal_label_font)
         self.t22 = fig.text(0.85, 0.86, f'', **normal_font)
@@ -348,10 +348,11 @@ class InterCandle:
         self.t8.set_text(f'{np.round(display_data["high"], 3)}')
         self.t10.set_text(f'{np.round(display_data["low"], 3)}')
         self.t12.set_text(f'{np.round(display_data["volume"] / 10000, 3)}')
-        self.t14.set_text(f'{display_data["amount"]}')
+        self.t14.set_text(f'{display_data["amount"]/100000}')
         # self.t16.set_text(f'{np.round(display_data["upper_lim"], 3)}')
         # self.t18.set_text(f'{np.round(display_data["lower_lim"], 3)}')
         # self.t20.set_text(f'{np.round(display_data["average"], 3)}')
+        self.t20.set_text(f'{np.round(display_data["close"], 3)}')
         self.t22.set_text(f'{np.round(display_data["pre_close"], 3)}')
         # 根据本交易日的价格变动值确定开盘价、收盘价的显示颜色
         if display_data['_change'] > 0:  # 如果今日变动额大于0，即今天价格高于昨天，今天价格显示为红色

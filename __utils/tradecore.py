@@ -15,6 +15,7 @@ from tkinter import messagebox
 from line_profiler import LineProfiler
 
 # 全局开关
+g_only_show_result = False
 g_debug_a_few_days = False
 g_debug_single_stock = False
 g_debug_two_stocks = False
@@ -140,8 +141,8 @@ class TradeCore:
 
             # 初始化g_df_daily:
             # 1，完整查询数据库的耗时是350秒；读取close_vol.csv文件的耗时是6-8秒；
-            # 2，查询一只股票或者查询一天的数据是0.8秒；对完整df进行过滤获取一天或者一只股票的数据的时间是0.5秒，获取很多天或者很多只股票的时间，不超过1秒。所以，暂时没必要实现只提供当天股票数据的主循环。
-            # 3，
+            # 2，查询一只股票所有天的耗时是0.15秒,查询一天的所有股票耗时是0.5秒（如果日期没有索引，是67秒）；对完整df进行过滤获取一天或者一只股票的数据的时间是0.5秒，获取很多天或者很多只股票的时间，不超过1秒。所以，暂时没必要实现只提供当天股票数据的主循环。
+            # 3，性能提升思路：瓶颈分析、数据预准备、
             if self.g_stock_codes == "all" or len(self.g_stock_codes) == 0:
                 sql_text = text(f'''select distinct ts_code from daily ''')
                 result = conn.execute(sql_text).fetchall()
@@ -511,7 +512,7 @@ class TradeCore:
             if os.path.isfile(dir_path):
                 print("file:", dir_path)
             else:
-                print("folder", dir_path)
+                # print("folder", dir_path)
                 last_folder_path.insert(0, dir_path)
         for item in last_folder_path:
             listbox.insert(tk.END, item)
@@ -635,7 +636,6 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
             trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
         return
 
-
     if g_b_use_ndarrary:
         print(cur_daily)
         for i in range(len(cur_daily)):
@@ -655,15 +655,13 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
                     and df_daily['vol'].values[-1] > compare_volume * trade_core_ins.const_times_of_sell:
                 trade_core_ins.sell(stock_code, df_daily['close'].tail(1).values[0])
         # print(f'end of handle_data_trade_strategy_low_volume')
-
-    return
+        return
 
     # 避免处理过大的数据集合导致耗时问题
-    if len(cur_df_daily) > 100 * 1000:
+    if len(cur_df_daily) > 200 * 5000:
         begin_date = (trade_core_ins.g_cur_day - datetime.timedelta(
-            trade_core_ins.const_count_of_compare_volume + 100)).strftime("%Y%m%d")
+            trade_core_ins.const_count_of_compare_volume + 500)).strftime("%Y%m%d")
         cur_df_daily = cur_df_daily[cur_df_daily['trade_date'] > begin_date]
-        # print(cur_df_daily)
 
     for stock_code, df_daily in cur_df_daily.groupby('ts_code'):
         # for stock_code in trade_core_ins.g_stock_codes:
@@ -687,6 +685,11 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
 
 
 if __name__ == '__main__':
+    if g_only_show_result:
+        trade_core = TradeCore()
+        trade_core.show_result(trade_func=handle_data_trade_strategy_low_volume)
+        exit(0)
+
     begin_time = datetime.datetime.now()
     print(f'''{'=' * 10} {begin_time} begin execute: {__file__}{'=' * 10}''')
     trade_core = TradeCore()
