@@ -18,7 +18,7 @@ from line_profiler import LineProfiler
 g_only_show_result = False
 g_debug_a_few_days = False
 g_debug_single_stock = False
-g_debug_two_stocks = False
+g_debug_two_stocks = True
 g_debug_from_last_100_days = False
 g_debug_first_100_days = False
 g_dry_run = False
@@ -31,13 +31,6 @@ g_cur_abs_path = ""
 # 无法成交判断：
 # 1，volume过低
 # 2，涨停无法买入，跌停无法卖出
-
-class Portforlio:
-
-    def __init__(self, stock_code, current_shares, average_cost):
-        self.s_stock_code = stock_code
-        self.s_current_shares = current_shares
-        self.s_average_cost = average_cost
 
 
 class TradeHistory:
@@ -89,6 +82,10 @@ class TradeCore:
         self.g_filter_func = None
         self.g_stock_codes = "all"
         self.g_path = ""
+        # 字典类型，key是stock_code，元素是元组，元组的第一个元素是持仓数目，第二个元素是持仓平均成本
+        self.g_portforlio = {}
+        self.g_trade_history = []
+
         return
 
     def init_trade(self, init_func, trade_func, begin_day, end_day, cash=1000000):
@@ -254,7 +251,7 @@ class TradeCore:
                     self.g_df_daily['trade_date'] < behind_day_str]
 
             if not g_dry_run:
-                if True:
+                if False:
                     lp = LineProfiler(self.g_trade_func)
                     last_perf_time = time.time()
                     if g_b_use_ndarrary:
@@ -286,28 +283,21 @@ class TradeCore:
 
         return
 
-    g_portforlio = []
-    g_trade_history = []
-
-    def get_sharehold(self, stock_code):
-        for cur_portforlio in self.g_portforlio:
-            if cur_portforlio.s_stock_code == stock_code:
-                return cur_portforlio.s_current_shares
-        return 0
+    def get_portfolio_shares(self, stock_code):
+        if stock_code in self.g_portforlio:
+            return self.g_portforlio[stock_code][0]
+        else:
+            return 0
 
     def buy(self, stock_code, price, shares):
         # print(f'TradeCore---buy par: stock_code = {stock_code}, price = {price}, shares = {shares}, cur_day = {self.g_cur_day}')
-        has_add = False
-        for cur_portforlio in self.g_portforlio:
-            if cur_portforlio.s_stock_code == stock_code:
-                cur_portforlio.s_average_cost = ((cur_portforlio.s_average_cost * cur_portforlio.s_current_shares) + (
-                        price * shares)) / (cur_portforlio.s_current_shares + shares)
-                cur_portforlio.s_current_shares += shares
-                has_add = True
 
-        if not has_add:
-            sharehold = Portforlio(stock_code, shares, price)
-            self.g_portforlio.append(sharehold)
+        if stock_code in self.g_portforlio:
+            self.g_portforlio[stock_code][1] = ((self.g_portforlio[stock_code][1] * self.g_portforlio[stock_code][0]) + (
+                    price * shares)) / (self.g_portforlio[stock_code][0] + shares)
+            self.g_portforlio[stock_code][0] += shares
+        else:
+            self.g_portforlio[stock_code] = (shares, price)
 
         trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day, "buy")
         self.g_trade_history.append(trade_history)
@@ -318,20 +308,13 @@ class TradeCore:
         # print(f'TradeCore---sell par: stock_code = {stock_code}, price = {price}, cur_day = {self.g_cur_day}')
 
         if shares == -1:
-            # 不能轻易删除已有的元素，否则容易导致外部循环死循环
-            self.g_portforlio = list(filter(lambda cur_portforlio: not cur_portforlio.s_stock_code == stock_code, self.g_portforlio))
-            # for cur_portforlio in self.g_portforlio:
-            #     if cur_portforlio.s_stock_code == stock_code:
-            #         # 代表清仓处理
-            #         # 卖出不改成本。
-            #         # cur_portforlio.s_average_cost = 0
-            #         cur_portforlio.s_current_shares = 0
-
+            self.g_portforlio.pop(stock_code)
         else:
-            for cur_portforlio in self.g_portforlio:
-                if cur_portforlio.s_stock_code == stock_code:
-                    cur_portforlio.s_current_shares -= shares
-                    # if cur_portforlio.s_current_shares == 0: delete
+            if stock_code in self.g_portforlio:
+                # 卖出不改变成本
+                self.g_portforlio[stock_code][0] -= shares
+            else:
+                print(f"!!! tradecore.sell: sell a not exist stock: {stock_code}:{price}:{shares}")
 
         trade_history = TradeHistory(stock_code, shares, price, self.g_cur_day if sell_date is None else sell_date,
                                      "sell", last_clear)
@@ -370,13 +353,11 @@ class TradeCore:
                 print(f'''==================================={stock_code}==================================''')
 
             # 清空持仓
-            for portforlio in self.g_portforlio:
-                if portforlio.s_stock_code == stock_code and portforlio.s_current_shares > 0:
+            if self.get_portfolio_shares(stock_code) > 0:
                     sell_price = df_cur_stock['close'].values[-1]
                     sell_date = df_cur_stock['trade_date'].values[-1]
                     # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
-                    self.sell(portforlio.s_stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
-                    break
+                    self.sell(stock_code, sell_price, -1, last_clear=True, sell_date=sell_date)
 
             last_buy = None
             total_profit = 0
@@ -632,27 +613,6 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
             trade_core_ins.g_cur_day - trade_core_ins.g_begin_day).days < trade_core_ins.const_count_of_compare_volume * 7 / 5:
         return
 
-    if g_b_use_ndarrary:
-        print(cur_daily)
-        for i in range(len(cur_daily)):
-            # for stock_code in trade_core_ins.g_stock_codes:
-            # print(cur_df_daily)
-            # df_daily = cur_df_daily[cur_df_daily['ts_code'] == stock_code]
-            if len(df_daily) < trade_core_ins.const_count_of_compare_volume:
-                continue
-
-            compare_volume = df_daily['vol'][-trade_core_ins.const_count_of_compare_volume:].mean()
-
-            if trade_core_ins.get_sharehold(stock_code) == 0 \
-                    and df_daily['vol'][
-                        -trade_core_ins.const_count_of_low_volume_days:].max() < compare_volume * trade_core_ins.const_times_of_buy:
-                trade_core_ins.buy(stock_code, df_daily['close'].tail(1).values[0], 1000)
-            elif trade_core_ins.get_sharehold(stock_code) > 0 \
-                    and df_daily['vol'].values[-1] > compare_volume * trade_core_ins.const_times_of_sell:
-                trade_core_ins.sell(stock_code, df_daily['close'].tail(1).values[0])
-        # print(f'end of handle_data_trade_strategy_low_volume')
-        return
-
     # 避免处理过大的数据集合导致耗时问题
     if len(cur_df_daily) > 200 * 5000:
         begin_date = (trade_core_ins.g_cur_day - datetime.timedelta(
@@ -667,7 +627,7 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
             continue
 
         compare_volume = df_daily['vol'].values[-trade_core_ins.const_count_of_compare_volume:].mean()
-        current_shares = trade_core_ins.get_sharehold(stock_code)
+        current_shares = trade_core_ins.get_portfolio_shares(stock_code)
 
         if current_shares == 0 \
                 and df_daily['vol'].values[
