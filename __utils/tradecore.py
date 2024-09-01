@@ -33,9 +33,6 @@ g_cur_abs_path = ""
 # 2，涨停无法买入，跌停无法卖出
 
 class Portforlio:
-    s_stock_code = ""
-    s_current_shares = 0
-    s_average_cost = 0
 
     def __init__(self, stock_code, current_shares, average_cost):
         self.s_stock_code = stock_code
@@ -44,15 +41,6 @@ class Portforlio:
 
 
 class TradeHistory:
-    s_stock_code = ""
-    s_share_change = 0
-    s_price = 0
-    s_trade_time = 0
-    s_buy_or_sell = False
-    s_profit = 0
-    s_profit_change = 0
-    # 这是为了计算最终成绩，对最后的残留持仓做清空操作
-    s_last_clear = False
 
     def __init__(self, stock_code, shares_change, price, trade_time, buy_or_sell, last_clear=False):
         self.s_stock_code = stock_code
@@ -60,6 +48,8 @@ class TradeHistory:
         self.s_price = price
         self.s_trade_time = trade_time
         self.s_buy_or_sell = buy_or_sell
+        self.s_profit = 0
+        self.s_profit_change = 0
         self.s_last_clear = last_clear
 
     def dump(self):
@@ -83,23 +73,26 @@ class TradeHistory:
 class TradeCore:
     g_is_trade_inited = False
     g_trade_calendar = []
-    g_cur_day = datetime.datetime(year=2005, month=1, day=1).date()
-    g_begin_day = datetime.datetime(year=2005, month=1, day=1).date()
-    g_end_day = datetime.datetime(year=2005, month=1, day=1).date()
-    g_df_daily = pd.DataFrame()
-    g_cur_df_daily = pd.DataFrame()
-    g_ary_daily = np.array([])
-    g_cur_ary_daily = np.array([])
-    g_df_close = pd.DataFrame()
-    g_df_vol = pd.DataFrame()
-    g_trade_func = None
-    g_filter_func = None
-    g_stock_codes = "all"
-    g_path = ""
     g_root_path = __file__.replace('.', '_')
 
+    def __init__(self):
+        self.g_cur_day = datetime.datetime(year=2005, month=1, day=1).date()
+        self.g_begin_day = datetime.datetime(year=2005, month=1, day=1).date()
+        self.g_end_day = datetime.datetime(year=2005, month=1, day=1).date()
+        self.g_df_daily = pd.DataFrame()
+        self.g_cur_df_daily = pd.DataFrame()
+        self.g_ary_daily = np.array([])
+        self.g_cur_ary_daily = np.array([])
+        self.g_df_close = pd.DataFrame()
+        self.g_df_vol = pd.DataFrame()
+        self.g_trade_func = None
+        self.g_filter_func = None
+        self.g_stock_codes = "all"
+        self.g_path = ""
+        return
+
     def init_trade(self, init_func, trade_func, begin_day, end_day, cash=1000000):
-        if not self.g_is_trade_inited:
+        if not TradeCore.g_is_trade_inited:
             print(
                 f"""{"=" * 10}trade_core init_trade: init_trade:{init_func.__name__}, trade_func:{trade_func.__name__}, begin_day:{begin_day}, end_day:{end_day}{"=" * 10}""")
             self.g_trade_func = trade_func
@@ -121,7 +114,7 @@ class TradeCore:
                 f.close()
 
             self.init_df_daily()
-            self.g_is_trade_inited = True
+            TradeCore.g_is_trade_inited = True
 
     def init_df_daily(self):
 
@@ -134,10 +127,10 @@ class TradeCore:
             # 初始化交易日历
             sql_text = text(f'''select distinct trade_date from daily ''')
             result = conn.execute(sql_text).fetchall()
-            self.g_trade_calendar = []
+            TradeCore.g_trade_calendar = []
             for element in result:
-                self.g_trade_calendar.append(element[0])
-            # print(self.g_trade_calendar)
+                TradeCore.g_trade_calendar.append(element[0])
+            # print(TradeCore.g_trade_calendar)
 
             # 初始化g_df_daily:
             # 1，完整查询数据库的耗时是350秒；读取close_vol.csv文件的耗时是6-8秒；
@@ -238,7 +231,7 @@ class TradeCore:
 
             self.g_cur_day = self.g_cur_day + datetime.timedelta(1)
             # 跳过非交易日
-            if self.g_cur_day.strftime("%Y%m%d") not in self.g_trade_calendar:
+            if self.g_cur_day.strftime("%Y%m%d") not in TradeCore.g_trade_calendar:
                 continue
 
             if g_b_use_ndarrary:
