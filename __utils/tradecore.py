@@ -18,8 +18,8 @@ from line_profiler import LineProfiler
 g_only_show_result = False
 g_debug_a_few_days = False
 g_debug_single_stock = False
-g_debug_two_stocks = True
-g_debug_from_last_100_days = False
+g_debug_two_stocks = False
+g_debug_from_last_100_days = True
 g_debug_first_100_days = False
 g_dry_run = False
 g_b_use_ndarrary = False
@@ -251,7 +251,7 @@ class TradeCore:
                     self.g_df_daily['trade_date'] < behind_day_str]
 
             if not g_dry_run:
-                if False:
+                if True:
                     lp = LineProfiler(self.g_trade_func)
                     last_perf_time = time.time()
                     if g_b_use_ndarrary:
@@ -259,7 +259,7 @@ class TradeCore:
                     else:
                         lp.runcall(self.g_trade_func, self, self.g_cur_df_daily)
                     # 5秒的总执行时间是7小时
-                    if time.time() - last_perf_time > 5:
+                    if time.time() - last_perf_time > 2:
                         lp.print_stats()
                 else:
                     if g_b_use_ndarrary:
@@ -282,12 +282,6 @@ class TradeCore:
         print('trade_by_daily执行完的耗时 {:.2f}秒'.format(end_time - start_time))
 
         return
-
-    def get_portfolio_shares(self, stock_code):
-        if stock_code in self.g_portforlio:
-            return self.g_portforlio[stock_code][0]
-        else:
-            return 0
 
     def buy(self, stock_code, price, shares):
         # print(f'TradeCore---buy par: stock_code = {stock_code}, price = {price}, shares = {shares}, cur_day = {self.g_cur_day}')
@@ -353,7 +347,7 @@ class TradeCore:
                 print(f'''==================================={stock_code}==================================''')
 
             # 清空持仓
-            if self.get_portfolio_shares(stock_code) > 0:
+            if self.g_portforlio.get(stock_code, (0, 0))[0] > 0:
                     sell_price = df_cur_stock['close'].values[-1]
                     sell_date = df_cur_stock['trade_date'].values[-1]
                     # print(self.g_df_daily.loc[(self.g_df_daily['trade_date']<=self.g_cur_day.strftime("%Y%m%d")) & (self.g_df_daily['ts_code']==portforlio.s_stock_code)][['ts_code', 'trade_date', 'close']])
@@ -627,7 +621,7 @@ def handle_data_trade_strategy_low_volume(trade_core_ins=None, cur_df_daily=None
             continue
 
         compare_volume = df_daily['vol'].values[-trade_core_ins.const_count_of_compare_volume:].mean()
-        current_shares = trade_core_ins.get_portfolio_shares(stock_code)
+        current_shares = trade_core_ins.g_portforlio.get(stock_code, (0, 0))[0]
 
         if current_shares == 0 \
                 and df_daily['vol'].values[
