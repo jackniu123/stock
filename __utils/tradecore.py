@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+import tkinter
 
 import numpy as np
 import pandas as pd
@@ -15,11 +16,11 @@ from tkinter import messagebox
 from line_profiler import LineProfiler
 
 # 全局开关
-g_only_show_result = False
+g_only_show_result = True
 g_debug_a_few_days = False
 g_debug_single_stock = False
 g_debug_two_stocks = False
-g_debug_from_last_100_days = True
+g_debug_from_last_100_days = False
 g_debug_first_100_days = False
 g_dry_run = False
 g_b_use_ndarrary = False
@@ -437,7 +438,24 @@ class TradeCore:
         lbl = tk.Label(top, text=trade_func.__name__ + "的分析结果...")
         listbox = tk.Listbox(top, width=900)
 
-        # create treeview
+        # create total statics treeview
+        treeview_total_statics = ttk.Treeview(top, show="headings", height=1, columns=(
+            "total_profit_from_50W", "win_percent", "trade_count", "profit_trade_count", "win_stock_percent", "win_stock_count",
+            "loss_stock_count", "begin_date", "end_date"))
+
+        # set column headings
+        treeview_total_statics.heading("#0", text="ID")
+        treeview_total_statics.heading("total_profit_from_50W", text="total_profit_from_50W")
+        treeview_total_statics.heading("win_percent", text="win_percent")
+        treeview_total_statics.heading("trade_count", text="trade_count")
+        treeview_total_statics.heading("profit_trade_count", text="profit_trade_count")
+        treeview_total_statics.heading("win_stock_percent", text="win_stock_percent")
+        treeview_total_statics.heading("win_stock_count", text="win_stock_count")
+        treeview_total_statics.heading("loss_stock_count", text="loss_stock_count")
+        treeview_total_statics.heading("begin_date", text="begin_date")
+        treeview_total_statics.heading("end_date", text="end_date")
+
+        # create statics treeview
         treeview_statics = ttk.Treeview(top, show="headings", columns=(
             "ts_code", "total_profit_change", "win_percent", "max_loss", "trade_count", "total_profit"))
 
@@ -450,6 +468,7 @@ class TradeCore:
         treeview_statics.heading("trade_count", text="trade_count")
         treeview_statics.heading("total_profit", text="total_profit")
 
+        # create trade history treeview
         trv_trade_history = ttk.Treeview(top, show="headings", columns=(
             "ts_code", "share_change", "price", "trade_time", "buy_or_sell", "s_last_clear"))
 
@@ -468,14 +487,85 @@ class TradeCore:
             global g_cur_abs_path
             g_cur_abs_path = selected_item
             print(selected_item + "\\" + "statics.csv  content:")
-            statics_data = pd.read_csv(selected_item + "\\" + "statics.csv")
+            statics_data = pd.DataFrame()
+            try:
+                statics_data = pd.read_csv(selected_item + "\\" + "statics.csv")
+            except Exception as e:
+                tkinter.messagebox.showerror("出错了", str(e))
             print(statics_data)
             items = treeview_statics.get_children()
             for item_trv in items:
                 treeview_statics.delete(item_trv)
+
+            items = treeview_total_statics.get_children()
+            for item_trv in items:
+                treeview_total_statics.delete(item_trv)
+
+            print("calculate total statics:")
+            total_statics = pd.DataFrame()
+            cur_money_from_50W = 0
+            trade_count = 0
+            profit_count = 0
+            win_stock_count = 0
+            loss_stock_count = 0
+            total_stock_count = 0
+
             for key, data in statics_data.iterrows():
                 print(data)
                 treeview_statics.insert("", tk.END, values=list(data))
+                trade_count += data['trade_count']
+                profit_count += int(data['trade_count'] * data['win_percent'] / 100)
+                # 均仓法(每只股票拿100块来玩)计算收益
+                cur_money_from_50W += 100 + data['total_profit_change']
+                if data['total_profit_change'] > 0:
+                    win_stock_count += 1
+                elif data['total_profit_change'] < 0:
+                    loss_stock_count += 1
+                total_stock_count += 1
+
+            begin_day = None
+            end_day = None
+            for line in open(g_cur_abs_path + "\\" + "config.conf", 'r'):
+                if line.find("g_begin_day") > 0 and line.find(", datetime") > 0:
+                    print('content:', line)
+                    start_index = line.find('20')
+                    line = line[start_index:-3]
+                    spllit_strings = line.split(",")
+                    print(spllit_strings)
+                    year = spllit_strings[0]
+                    month = spllit_strings[1]
+                    day = spllit_strings[2]
+                    print(year, month, day)
+                    begin_day = datetime.datetime(year=int(year), month=int(month), day=int(day)).strftime(
+                        "%Y%m%d")
+                    print(begin_day)
+                elif line.find("g_end_day") > 0 and line.find(", datetime") > 0:
+                    print('content:', line)
+                    start_index = line.find('20')
+                    line = line[start_index:-3]
+                    spllit_strings = line.split(",")
+                    print(spllit_strings)
+                    year = spllit_strings[0]
+                    month = spllit_strings[1]
+                    day = spllit_strings[2]
+                    print(year, month, day)
+                    end_day = datetime.datetime(year=int(year), month=int(month), day=int(day)).strftime(
+                        "%Y%m%d")
+                    print(end_day)
+            total_statics = total_statics._append(
+                {'total_profit_from_50W': cur_money_from_50W, \
+                 'win_percent': profit_count * 100 / trade_count if trade_count > 0 else 0, \
+                 'trade_count': trade_count, \
+                 'profit_trade_count': profit_count, \
+                 'win_stock_percent': win_stock_count * 100 / total_stock_count, \
+                 'win_stock_count': win_stock_count, \
+                 'loss_stock_count': loss_stock_count, \
+                 'begin_date': begin_day, \
+                 'end_date': end_day}, ignore_index=True)
+            total_statics.to_csv(selected_item + "\\" + "total_statics.csv")
+            print('total statics:', total_statics)
+            for key, data in total_statics.iterrows():
+                treeview_total_statics.insert("", tk.END, values=list(data))
 
         last_folder_path = []
         for dir_name in os.listdir(result_path):
@@ -571,6 +661,7 @@ class TradeCore:
         lbl.pack()
         listbox.pack()
         # display treeview
+        treeview_total_statics.pack()
         treeview_statics.pack()
         trv_trade_history.pack()
 

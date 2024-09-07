@@ -14,8 +14,11 @@ labels = []
 values = []
 
 web_info = [("深圳房地产交易数据", "https://zjj.sz.gov.cn/xxgk/ztzl/pubdata/"),
-            ("appStore数据", "https://app.diandian.com/app/13uouqg2qvqr7b1/ios?market=1&country=75&id=6466232155"),
-            ("深圳市房地产信息平台", "https://zjj.sz.gov.cn:8004/")]
+            ("国家统计局(房地产等)", "https://www.stats.gov.cn/sj/zxfb/202401/t20240116_1946623.html"),
+            ("深圳市房地产信息平台", "https://zjj.sz.gov.cn:8004/"),
+            ("appStore数据", "https://app.diandian.com/app/13uouqg2qvqr7b1/ios?market=1&country=75&id=6466232155")]
+
+# 港股股权高度集中公告：https://www.sfc.hk/TC/News-and-announcements/High-shareholding-concentration-announcements
 
 def collect_result(label='标签1', value=("", "", "")):
     labels.append(label)
