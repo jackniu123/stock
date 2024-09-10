@@ -115,10 +115,11 @@ def check_liquidity_chance_and_risk():
 
         if len(str(found_data)) > 10:
 
-            print(found_data)
+            print('before json.load:', found_data)
             found_data = json.loads(found_data)
+            print('after json.load:', found_data)
             found_data = found_data['data']['c:81331']['series']
-            print(found_data)
+            print('after index:', found_data)
 
             if os.path.exists('found_data.txt'):
                 os.remove('found_data.txt')
