@@ -1,4 +1,5 @@
 # 开机启动程序的总入口文件
+import datetime
 import logging
 import sys
 import time
@@ -8,7 +9,22 @@ from __utils import result_overview
 sys.path.append('D:/不要删除牛爸爸的程序') # 绝对路径
 sys.path.append('D:/不要删除牛爸爸的程序/工具软件') # 绝对路径
 
+def today_has_processed():
+    for line in open("D:\\不要删除牛爸爸的程序\\__utils\\python_log.log", 'r'):
+        if line.find("__main.py") > 0 \
+                and line.find((datetime.datetime.now() - datetime.timedelta(1)).date().strftime("%Y-%m-%d")) == 0 \
+                and line.find("=================finished========================") > 0:
+            print('content:', line)
+            return True
+
+    return False
+
 if __name__ == '__main__':
+
+    if today_has_processed():
+        messagebox.logger.warning('totay has been processed.')
+        exit()
+
     messagebox.logger.warning('=================begin...=================')
 
     if True:

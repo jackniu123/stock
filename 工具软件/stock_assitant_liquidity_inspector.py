@@ -81,7 +81,10 @@ def find_data(main_url='https://sc.macromicro.me/charts/81331/mei-guo-shi-chang-
             try:
                 resp = browser.execute_cdp_cmd('Network.getResponseBody', {'requestId': requestId})  # selenium调用 cdp
                 print(f'type: {packet_type} url: {url}')
-                print(f'response: {resp}')
+                try:
+                    print(f'response: {resp}')
+                except Exception as e:
+                    print("!!!\033[0;31;40m", e, "\033[0m")
                 if match_url and match_content:
                     if match_url in url and match_content in resp:
                         return resp['body']
